@@ -18,7 +18,11 @@ package uk.ac.leedsbeckett.lti.toolset.websocket;
 import java.util.HashSet;
 
 /**
- *
+ * A utility map of message Java classes.
+ * Used internally to keep set of types that will be accepted in
+ * incoming messages. Restriction is needed for security since client
+ * could trigger instantiation of arbitary classes otherwise.
+ * 
  * @author maber01
  */
 public class ToolMessageTypeSet

@@ -25,7 +25,7 @@ import uk.ac.leedsbeckett.lti.toolset.ToolCoordinator;
 import uk.ac.leedsbeckett.lti.toolset.ToolSetLtiState;
 
 /**
- * This demo's implementation of the LTI login servlet. The annotation determines
+ * This API's implementation of the LTI login servlet. The annotation determines
  * where the servlet appears in the app's URL space.
  * 
  * @author jon

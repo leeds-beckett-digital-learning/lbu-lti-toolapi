@@ -25,15 +25,26 @@ import javax.websocket.Session;
 import uk.ac.leedsbeckett.lti.toolset.websocket.annotations.EndpointMessageHandler;
 
 /**
- *
+ * A super class for tools to base endpoints on. Provides functionality to keep
+ * track of handler methods and to dispatch messages to them.
+ * 
  * @author maber01
  */
 public abstract class ToolEndpoint
 {
   static final Logger logger = Logger.getLogger( ToolEndpoint.class.getName() );
 
+  /**
+   * A map of maps to keep track of handlers in implementations.
+   */
   static HashMap<Class,HashMap<String,HandlerMethodRecord>> classHandlerMaps = new HashMap<>();
   
+  /**
+   * For a given sub-class of ToolEndpoint find a map of message names against handlers.
+   * 
+   * @param c The class.
+   * @return The corresponding map.
+   */
   public static HashMap<String,HandlerMethodRecord> getHandlerMap( Class c )
   {
     synchronized ( classHandlerMaps )
@@ -48,6 +59,13 @@ public abstract class ToolEndpoint
     }
   }
   
+  /**
+   * Use reflection and annotations to build a map of handlers for a specific
+   * subclass of ToolEndpoint.
+   * 
+   * @param clasz The specific class.
+   * @return The map.
+   */
   static HashMap<String,HandlerMethodRecord> createHandlerMap( Class clasz )
   {
     HashMap<String,HandlerMethodRecord> handlerMap = new HashMap<>();
@@ -99,11 +117,22 @@ public abstract class ToolEndpoint
     return handlerMap;
   }
   
-
+  /**
+   * Default constructor for ToolEndpoint.
+   */
   public ToolEndpoint()
   {
   }
   
+  /**
+   * A method for use by subclasses that will handle an incoming message and
+   * dispatch it to the right handler method using reflection.
+   * 
+   * @param session The websocket session that the message came in on.
+   * @param message The websocket message.
+   * @return Returns true if the message was recognised and handled, whether or not it resulted in an error or warning.
+   * @throws IOException Thrown to abort message processing.
+   */
   public boolean dispatchMessage( Session session, ToolMessage message ) throws IOException
   {
     logger.log( Level.INFO, "dispatchMessage type = " + message.getMessageType() );

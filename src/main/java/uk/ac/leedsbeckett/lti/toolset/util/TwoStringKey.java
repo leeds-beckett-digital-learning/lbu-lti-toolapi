@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package uk.ac.leedsbeckett.lti.util;
+package uk.ac.leedsbeckett.lti.toolset.util;
 
 import java.io.Serializable;
 

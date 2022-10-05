@@ -25,7 +25,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
@@ -41,7 +40,7 @@ import uk.ac.leedsbeckett.lti.toolset.annotations.ToolMapping;
 
 
 /**
- * This demo's implementation of the LTI launch servlet. This implementation
+ * This API's implementation of the LTI launch servlet. This implementation
  * will map onto a url pattern.
  * 
  * @author jon
@@ -53,11 +52,11 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
   /**
    * The parent class calls this method after it has processed and validated 
    * the launch request.The job here is to look at the claims in the LTI
- launch and decide how to prepare state and how to forward the user to
- the servlet or JSP page that actually implements the tool.
+   * launch and decide how to prepare state and how to forward the user to
+   * the servlet or JSP page that actually implements the tool.
    * 
    * @param lticlaims The validated LTI claims for this launch request.
-   * @param state
+   * @param state The LTI state object.
    * @param request The HTTP request.
    * @param response The HTTP response.
    * @throws ServletException If there is an internal problem forwarding the user's browser.

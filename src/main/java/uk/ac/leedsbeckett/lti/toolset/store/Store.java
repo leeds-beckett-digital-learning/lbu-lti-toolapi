@@ -33,11 +33,11 @@ import javax.cache.expiry.Duration;
 
 /**
  * A store of resources which can be retrieved using keys.At present all
- resources stay in the store until the store is garbage collected after the
- web application shuts down.All resources are lost entirely at shut down
- in this demo. A proper implementation would store data on file or in a 
- database and would purge memory of resources that haven't been used for a
- while.
+ * resources stay in the store until the store is garbage collected after the
+ * web application shuts down.All resources are lost entirely at shut down
+ * in this demo. A proper implementation would store data on file or in a 
+ * database and would purge memory of resources that haven't been used for a
+ * while.
  * 
  * @author jon
  * @param <K> The key class.
@@ -56,6 +56,12 @@ public abstract class Store<K,T extends Entry<K>>
   
   Cache<K,T> cache;
   
+  /**
+   * Create a store for the stated type of entry, type of key and give it a
+   * name.
+   * 
+   * @param name The name of the store.
+   */
   public Store( String name )
   {
     logger.log(Level.FINE, "Caching provider class {0}", Caching.getCachingProvider().getClass().getName() );
@@ -65,21 +71,36 @@ public abstract class Store<K,T extends Entry<K>>
     cache = manager.createCache( name, config );
   }
   
+  /**
+   * Create an empty entry using a key.
+   * 
+   * @param key The key to use.
+   * @return A new entry.
+   */
   public abstract T create( K key );
+  
+  /**
+   * Get a class of the type that matches entries.
+   * 
+   * @return The class of entries.
+   */
   public abstract Class<T> getEntryClass();
+  
+  /**
+   * Get a path into the file system where the data entry will be stored
+   * based on the contents of the key.
+   * 
+   * @param key The key.
+   * @return A file system path where the object should be stored.
+   */
   public abstract Path getPath( K key );
-//  {
-//    Path d = basepath.resolve( URLEncoder.encode( key.getPlatformId(), StandardCharsets.UTF_8 ) );
-//    return d.resolve( URLEncoder.encode( key.getResourceId(), StandardCharsets.UTF_8 ) );
-//  }
-  
-  
+    
   
   /**
    * Find a resource keyed by platform ID and resource ID with option to
    * create the resource if it doesn't exist yet.
    * 
-   * @param key
+   * @param key The unique key of the entry.
    * @param create Set true if the resource should be created if it doesn't already exist.
    * @return The resource or null if it wasn't found and creation wasn't requested.
    */
@@ -96,13 +117,13 @@ public abstract class Store<K,T extends Entry<K>>
     logger.log( Level.FINE, "Not in cache - PeerGroupResource {0}", key.toString() );
     try
     {
-      r = loadResource( key );
+      r = load( key );
       if ( r == null )
       {
         r = create( key );
         // an entirely new resource so set it up
         r.initialize();
-        saveResource( key, r );
+        save( key, r );
     }
       else
       {
@@ -120,14 +141,27 @@ public abstract class Store<K,T extends Entry<K>>
     return r;
   }
     
+  /**
+   * Save the data to disk and update the cache.
+   * 
+   * @param entry An entry to store and update in the cache.
+   * @throws IOException Thrown if there is a problem storing the data.
+   */
   public void update( T entry ) throws IOException
   {
     if ( entry.getKey() == null )
       throw new IllegalArgumentException( "Cannot update resource that lacks a key." );
-    saveResource( entry.getKey(), entry );
+    save( entry.getKey(), entry );
   }
-  
-  T loadResource( K key ) throws IOException
+
+  /**
+   * Load and entry from disk.
+   * 
+   * @param key The unique key to the entry.
+   * @return The loaded record or null if it doesn't exist.
+   * @throws IOException Thrown if there is a fault loading the data.
+   */  
+  T load( K key ) throws IOException
   {
     Path filepath = getPath( key );
     if ( Files.exists( filepath ) )
@@ -138,7 +172,14 @@ public abstract class Store<K,T extends Entry<K>>
     return null;
   }
   
-  void saveResource( K key, T r ) throws IOException
+  /**
+   * Save a data record against a key.
+   * 
+   * @param key The key of the record.
+   * @param r The data record to save.
+   * @throws IOException Thrown if a problem occurs saving data.
+   */
+  void save( K key, T r ) throws IOException
   {
     Path filepath = getPath( key );
     Files.createDirectories( filepath.getParent() );
@@ -147,24 +188,5 @@ public abstract class Store<K,T extends Entry<K>>
     cache.put( key, r );
     if ( !cache.containsKey(key) )
       logger.log( Level.SEVERE, "Put resource in cache but key is not present {0}", key.toString() );
-  }
-  
-  /*
-  public static void main( String[] args )
-  {
-    ConsoleHandler handler = new ConsoleHandler();
-    handler.setLevel( Level.ALL );
-    handler.setFormatter( new SimpleFormatter() );
-    
-    logger.setUseParentHandlers( false );
-    logger.addHandler( handler );
-    logger.setLevel( Level.ALL );
-    
-    logger.info( "Starting." );
-    Store store = new Store( Paths.get( "/Users/maber01/peerstore/") );
-    ResourceKey rk = new ResourceKey( "platform", "1" );
-    PeerGroupResource r = store.get( rk, true );
-    
-  }
-  */
+  }  
 }

@@ -36,7 +36,7 @@ public abstract class ToolPageSupport extends PageSupport
    * methods to retrieve outcomes of the processing.
    * 
    * @param request The HttpRequest associated with the JSP's servlet.
-   * @throws javax.servlet.ServletException
+   * @throws javax.servlet.ServletException Thrown to abort processing of the page request.
    */
   @Override
   public void setRequest( HttpServletRequest request ) throws ServletException

@@ -82,8 +82,8 @@ public class ToolCoordinator implements ServletContainerInitializer
    * associated with a WebSocketContainer. Instances have to create that 
    * association when they start up.
    * 
-   * @param wsContainer
-   * @return 
+   * @param wsContainer The WebSocketContainer for the endpoint that wants a ToolCoordinator.
+   * @return The instance for the endpoint.
    */
   public static ToolCoordinator get( WebSocketContainer wsContainer )
   {
@@ -104,7 +104,16 @@ public class ToolCoordinator implements ServletContainerInitializer
   // WebSocket Endpoint related stuff
   private final HashMap<ResourceKey,CopyOnWriteArraySet<Session>> wssessionlistmap = new HashMap<>();
   ClosedSessionPredicate closedsessionpredicate = new ClosedSessionPredicate();
-  
+
+  /**
+   * A service record in the META-INF resource of the API jar file fill ensure
+   * that the web application container (e.g. tomcat) will load this class and
+   * call this method.
+   * 
+   * @param c Set of classes chosen based on HandlesTypes annotations.
+   * @param ctx The servlet context.
+   * @throws ServletException Thrown to abort the whole web application. 
+   */
   @Override
   public void onStartup( Set<Class<?>> c, ServletContext ctx ) throws ServletException
   {
@@ -133,6 +142,12 @@ public class ToolCoordinator implements ServletContainerInitializer
     initLtiStateStore();
   }
 
+  /**
+   * Process the list of classes one by one.
+   * 
+   * @param c The set.
+   * @param ctx The servlet context.
+   */
   private void processClasses(  Set<Class<?>> c, ServletContext ctx )
   {
     for ( Class<?> cl : c )
@@ -143,6 +158,13 @@ public class ToolCoordinator implements ServletContainerInitializer
     }    
   }
   
+  /**
+   * Process one of the classes that were scanned.
+   * 
+   * @param clasz The class to examine.
+   * @param mappings The ToolMapping annotations, if any, that were found.
+   * @param ctx The servlet context.
+   */
   private void processToolMapping( Class<?> clasz, ToolMapping[] mappings, ServletContext ctx )
   {
     if ( mappings == null || mappings.length == 0 )
@@ -177,6 +199,12 @@ public class ToolCoordinator implements ServletContainerInitializer
     }          
   }
   
+  /**
+   * Process one of the classes that were scanned.
+   * 
+   * @param clasz The class to examine.
+   * @param mappings The ToolSetMapping annotations, if any, that were found.
+   */
   private void processToolSetMapping( Class<?> clasz, ToolSetMapping[] mappings )
   {
     if ( mappings == null || mappings.length == 0 )
@@ -191,6 +219,12 @@ public class ToolCoordinator implements ServletContainerInitializer
     toolSetMapping = mappings[0];    
   }
   
+  /**
+   * Deploy the LTI login and launch servlets based on annotations from the
+   * toolSetMapping annotation.
+   * 
+   * @param ctx The servlet context within which the servlets will be deployed.
+   */
   private void initServlets( ServletContext ctx )
   {
     ServletRegistration loginReg  = ctx.addServlet( "ToolLoginServlet",  ToolLoginServlet.class );
@@ -200,27 +234,57 @@ public class ToolCoordinator implements ServletContainerInitializer
     launchReg.addMapping( toolSetMapping.launchUrl() );
   }
   
+  /**
+   * Find a tool mapping object based on a toolkey composed of type and name.
+   * 
+   * @param key The key.
+   * @return The tool mapping or null;
+   */
   public ToolMapping getToolMapping( ToolKey key )
   {
     return toolMappingMap.get( key );
   }
   
+  /**
+   * Find a tool mapping object based on type and name.
+   * 
+   * @param type The tool type.
+   * @param name The tool name.
+   * @return The tool mapping or null;
+   */
   public ToolMapping getToolMapping( String type, String name )
   {
     return toolMappingMap.get( new ToolKey( type, name ) );
   }
   
+  /**
+   * Find a tool object based on a toolkey composed of type and name.
+   * 
+   * @param key The key.
+   * @return The tool mapping or null;
+   */
   public Tool getTool( ToolKey key )
   {
     return toolMap.get( key );
   }
   
+  /**
+   * Find a tool object based on type and name.
+   * 
+   * @param type The tool type.
+   * @param name The tool name.
+   * @return The tool mapping or null;
+   */
   public Tool getTool( String type, String name )
   {
     return toolMap.get( new ToolKey( type, name ) );
   }
 
 
+  /**
+   * Set up an LTI state store
+   * 
+   */
   public void initLtiStateStore()
   {
     Cache<String, ToolSetLtiState> cache;
@@ -232,11 +296,20 @@ public class ToolCoordinator implements ServletContainerInitializer
     ltistatestore = new LtiStateStore<>( cache, new ToolSetLtiStateSupplier() ); 
   }
   
+  /**
+   * Get the LTI state store.
+   * @return The store.
+   */
   public LtiStateStore<ToolSetLtiState> getLtiStateStore()
   {
     return ltistatestore;
   }
   
+  /**
+   * Load the LTI configuration file from a standard location.
+   * 
+   * @param context 
+   */
   private void initLtiConfiguration( ServletContext context )
   {
     String configpath = context.getRealPath( "/WEB-INF/config.json" );
@@ -248,12 +321,24 @@ public class ToolCoordinator implements ServletContainerInitializer
     }
   }  
   
+  /**
+   * Get the LTI configuration.
+   * @return The config object.
+   */
   public LtiConfiguration getLtiConfiguration()
   {
     return lticonfig;
   }  
   
   
+  /**
+   * Keep track of a web socket session. That may be needed so that 
+   * messages can be multicast to all client endpoints associated with
+   * a specific resource.
+   * 
+   * @param key The key of a specific platform resource.
+   * @param session The session to add.
+   */
   public void addWsSession( ResourceKey key, Session session )
   {
     synchronized ( wssessionlistmap )
@@ -268,6 +353,12 @@ public class ToolCoordinator implements ServletContainerInitializer
     }
   }
   
+  /**
+   * Remove a web socket session because it has shut down.
+   * 
+   * @param key The key of the specific platform resource.
+   * @param session The session to remove.
+   */
   public void removeWsSession( ResourceKey key, Session session )
   {
     synchronized ( wssessionlistmap )
@@ -278,6 +369,14 @@ public class ToolCoordinator implements ServletContainerInitializer
     }
   }
   
+  /**
+   * Get a set of web socket sessions that have been registered against
+   * a specific platform resource. Probably the intention is to multicast
+   * a message to them all.
+   * 
+   * @param key The key of the specific platform resource.
+   * @return The set.
+   */
   public Set<Session> getWsSessionsForResource( ResourceKey key )
   {
     synchronized ( wssessionlistmap )
@@ -289,6 +388,10 @@ public class ToolCoordinator implements ServletContainerInitializer
     }  
   }
   
+  /**
+   * A handy utility for use with Set.removeIf()
+   * 
+   */
   class ClosedSessionPredicate implements Predicate<Session>
   {
     @Override
@@ -296,7 +399,5 @@ public class ToolCoordinator implements ServletContainerInitializer
     {
       return !t.isOpen();
     }
-    
   }
-  
 }

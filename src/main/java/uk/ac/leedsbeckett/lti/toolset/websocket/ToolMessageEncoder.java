@@ -24,6 +24,8 @@ import javax.websocket.Encoder;
 import javax.websocket.EndpointConfig;
 
 /**
+ * A utility for use with endpoints which encodes POJO messages as plain text 
+ * using Jackson JSON processing.
  *
  * @author maber01
  */
@@ -33,6 +35,13 @@ public class ToolMessageEncoder implements Encoder.Text<ToolMessage>
 
   ObjectMapper mapper = new ObjectMapper();
   
+  /**
+   * Take and outgoing message and encode as plain text.
+   * 
+   * @param tm The message.
+   * @return The raw text encoded message.
+   * @throws EncodeException If the encoding goes wrong.
+   */
   @Override
   public String encode( ToolMessage tm ) throws EncodeException
   {
@@ -72,11 +81,18 @@ public class ToolMessageEncoder implements Encoder.Text<ToolMessage>
     return sb.toString();
   }
 
+  /**
+   * Init the decoder - does nothing.
+   * @param config Ignored.
+   */
   @Override
   public void init( EndpointConfig config )
   {
   }
 
+  /**
+   * Destroy the decoder - does nothing.
+   */
   @Override
   public void destroy()
   {

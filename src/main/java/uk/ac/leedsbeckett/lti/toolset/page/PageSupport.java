@@ -36,7 +36,7 @@ public abstract class PageSupport
 
   /**
    * Get the HTTP request associated with the JSP page that uses this object.
-   * @return 
+   * @return The HTTPServletRequest that was set for this object.
    */
   public HttpServletRequest getRequest()
   {
@@ -48,7 +48,7 @@ public abstract class PageSupport
    * methods to retrieve outcomes of the processing.
    * 
    * @param request The HttpRequest associated with the JSP's servlet.
-   * @throws javax.servlet.ServletException
+   * @throws javax.servlet.ServletException An exception which should abort processing of the page request.
    */
   public void setRequest( HttpServletRequest request ) throws ServletException
   {
@@ -67,9 +67,12 @@ public abstract class PageSupport
   }
   
   /**
-   *
-   * @param annotation
-   * @return
+   * If there is a websocket which will be used by the page, this method
+   * will calculate the URI of the endpoint based on the web application
+   * context and the Annotation of the endpoint.
+   * 
+   * @param annotation The annotation of an Endpoint.
+   * @return The full URI of the websocket.
    */
   protected String computeWebSocketUri( Annotation annotation )
   {

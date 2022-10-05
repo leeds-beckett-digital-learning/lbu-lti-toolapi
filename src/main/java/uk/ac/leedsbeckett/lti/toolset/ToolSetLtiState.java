@@ -39,7 +39,7 @@ public class ToolSetLtiState extends LtiState implements Serializable
    * Constructor of this state must make sure the superclass constructor
    * is called.
    * 
-   * @param clientKey
+   * @param clientKey The key to an LTI client.
    */
   public ToolSetLtiState( ClientLtiConfigurationKey clientKey )
   {

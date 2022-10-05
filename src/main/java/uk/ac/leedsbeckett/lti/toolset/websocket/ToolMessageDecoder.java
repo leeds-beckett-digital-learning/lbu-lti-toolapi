@@ -26,7 +26,9 @@ import javax.websocket.Decoder;
 import javax.websocket.EndpointConfig;
 
 /**
- *
+ * A utility for use with endpoints which decodes plain text messages to POJO
+ * using Jackson JSON processing.
+ * 
  * @author maber01
  */
 public class ToolMessageDecoder implements Decoder.Text<ToolMessage>
@@ -35,6 +37,13 @@ public class ToolMessageDecoder implements Decoder.Text<ToolMessage>
   
   ObjectMapper mapper = new ObjectMapper();
 
+  /**
+   * Decode an incoming message.
+   * 
+   * @param s The raw message.
+   * @return The decoded object.
+   * @throws DecodeException  If the encoding goes wrong.
+   */
   @Override
   public ToolMessage decode( String s ) throws DecodeException
   {
@@ -111,17 +120,31 @@ public class ToolMessageDecoder implements Decoder.Text<ToolMessage>
     return tm;
   }
 
+  /**
+   * No sensible short cut to decide if the message can be decoded so always
+   * return true.
+   * 
+   * @param s The raw message.
+   * @return True.
+   */
   @Override
   public boolean willDecode( String s )
   {
     return true;
   }
 
+  /**
+   * Init the decoder - does nothing.
+   * @param config Ignored.
+   */
   @Override
   public void init( EndpointConfig config )
   {
   }
 
+  /**
+   * Destroy the decoder - does nothing.
+   */
   @Override
   public void destroy()
   {

@@ -18,6 +18,8 @@ package uk.ac.leedsbeckett.lti.toolset;
 
 /**
  * This contains data that a user of the platform-wide tool might need.
+ * Implementations for different tools will vary. Objects of this type are
+ * set in the LTI Launch State.
  * 
  * @author jon
  */

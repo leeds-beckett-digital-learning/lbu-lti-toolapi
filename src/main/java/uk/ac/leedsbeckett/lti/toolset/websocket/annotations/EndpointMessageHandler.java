@@ -21,12 +21,19 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- *
+ * This annotates methods in a websocket endpoint. 
+ * 
  * @author maber01
  */
 @Retention( RetentionPolicy.RUNTIME )
 @Target( ElementType.METHOD)
 public @interface EndpointMessageHandler
 {
+  /**
+   * The name of the message that will be handled by the annotated method.
+   * If blank the name will be based on the method name.
+   * 
+   * @return The name which is blank by default.
+   */
   String name() default "";
 }

@@ -21,13 +21,28 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- *
+ * This annotation is applied to a class to indicates mappings for
+ * the tool set.
+ * 
  * @author maber01
  */
 @Retention( RetentionPolicy.RUNTIME )
 @Target( ElementType.TYPE )
 public @interface ToolSetMapping
 {
+  /**
+   * Where in URL space, relative to the servlet context, where the standard 
+   * login servlet will be placed.
+   * 
+   * @return The URL.
+   */
   public String loginUrl();
+  
+  /**
+   * Where in URL space, relative to the servlet context, where the standard 
+   * launch servlet will be placed.
+   * 
+   * @return The URL.
+   */
   public String launchUrl();  
 }

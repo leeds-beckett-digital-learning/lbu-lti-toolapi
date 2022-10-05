@@ -6,6 +6,12 @@ apply plugin: 'maven-publish'
 description = 'LBU-LTI-ToolApi'
 group = 'uk.ac.leedsbeckett'
 
+// Publish javadoc and source packages along with built library
+java {
+    withSourcesJar()
+    withJavadocJar()
+}
+
 repositories {
     mavenCentral()
     maven {
@@ -20,11 +26,12 @@ repositories {
 dependencies {
     implementation 'javax.servlet:javax.servlet-api:4.0.0'
     implementation 'javax.websocket:javax.websocket-api:1.1'
-
-
     implementation 'commons-io:commons-io:2.11.0'
     implementation 'org.apache.commons:commons-text:1.9'
-    implementation 'org.apache.httpcomponents.core5:httpcore5:5.1.2'
+    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.13.0'
+    implementation 'org.reflections:reflections:0.10.2'
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.2'
+    implementation 'uk.ac.leedsbeckett:lbu-lti:0.0.21'
 
     // The generic java cache API is included here but the standard
     // Java runtime will not have a cache provider installer so an
@@ -32,17 +39,6 @@ dependencies {
     // cache provider.
     implementation 'javax.cache:cache-api:1.1.1'
 
-    implementation group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.13.0'
-    
-    implementation 'org.reflections:reflections:0.10.2'
-
-    implementation 'io.jsonwebtoken:jjwt-api:0.11.2'
-    //runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.2',
-    //        // Uncomment the next line if you want to use RSASSA-PSS (PS256, PS384, PS512) algorithms:
-    //        'org.bouncycastle:bcprov-jdk15on:1.60',
-    //        'io.jsonwebtoken:jjwt-jackson:0.11.2'
-
-    implementation 'uk.ac.leedsbeckett:lbu-lti:0.0.19'
 
     testImplementation     'junit:junit:4.13'
 }

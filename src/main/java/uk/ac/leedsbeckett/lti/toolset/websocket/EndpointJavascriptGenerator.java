@@ -27,7 +27,10 @@ import org.apache.commons.text.StringSubstitutor;
 import org.reflections.Reflections;
 
 /**
- *
+ * This class looks for methods of endpoints which are annotated with
+ * EndpointMessageHandler.class and generates javascript for use by 
+ * clients.
+ * 
  * @author maber01
  */
 public class EndpointJavascriptGenerator
@@ -85,60 +88,67 @@ public class EndpointJavascriptGenerator
     "}\n\n";
 
 
-    public static String getJavaScriptClass( HandlerMethodRecord handler )
+  static String getJavaScriptClass( HandlerMethodRecord handler )
+  {
+    StringBuilder sba = new StringBuilder();
+    StringBuilder sbb = new StringBuilder();
+    boolean first=true;
+
+    if ( handler.getParameterClass() != null )
     {
-      StringBuilder sba = new StringBuilder();
-      StringBuilder sbb = new StringBuilder();
-      boolean first=true;
-      
-      if ( handler.getParameterClass() != null )
+      Constructor<?>[] constructors = handler.getParameterClass().getConstructors();
+      if ( constructors == null || constructors.length != 1 )
+        return null;
+
+      Annotation[][] anns = constructors[0].getParameterAnnotations();
+      String names[] = new String[anns.length];
+      for ( int i=0; i<anns.length; i++ )
       {
-        Constructor<?>[] constructors = handler.getParameterClass().getConstructors();
-        if ( constructors == null || constructors.length != 1 )
+        for ( Annotation a : anns[i] )
+          if ( a instanceof JsonProperty )
+            names[i] = ((JsonProperty)a).value();
+        if ( names[i] == null )
           return null;
-        
-        Annotation[][] anns = constructors[0].getParameterAnnotations();
-        String names[] = new String[anns.length];
-        for ( int i=0; i<anns.length; i++ )
-        {
-          for ( Annotation a : anns[i] )
-            if ( a instanceof JsonProperty )
-              names[i] = ((JsonProperty)a).value();
-          if ( names[i] == null )
-            return null;
-        }
-        
-        for ( String n : names )
-        {
-          if ( first )
-            first=false;
-          else
-          {
-            sba.append( ", " );
-            sbb.append( ", " );
-          }
-          sba.append( n );
-          sbb.append( "\"" );
-          sbb.append( n );
-          sbb.append( "\": " );
-          sbb.append( n );
-        }
       }
 
-      Map<String,String> map = new HashMap<>();
-      StringSubstitutor sub = new StringSubstitutor( map );
-      map.put( "classname",   handler.getName() );
-      map.put( "messagetype", handler.getName() );
-      if ( handler.getParameterClass() == null )
-        return sub.replace( JS_TEMPLATE );        
-      
-      map.put( "payloadtype", handler.getParameterClass().getName() );
-      map.put( "parameters",  sba.toString() );
-      map.put( "payload",     sbb.toString() );
-      return sub.replace( JS_TEMPLATE_PAYLOAD );
+      for ( String n : names )
+      {
+        if ( first )
+          first=false;
+        else
+        {
+          sba.append( ", " );
+          sbb.append( ", " );
+        }
+        sba.append( n );
+        sbb.append( "\"" );
+        sbb.append( n );
+        sbb.append( "\": " );
+        sbb.append( n );
+      }
     }
 
+    Map<String,String> map = new HashMap<>();
+    StringSubstitutor sub = new StringSubstitutor( map );
+    map.put( "classname",   handler.getName() );
+    map.put( "messagetype", handler.getName() );
+    if ( handler.getParameterClass() == null )
+      return sub.replace( JS_TEMPLATE );        
 
+    map.put( "payloadtype", handler.getParameterClass().getName() );
+    map.put( "parameters",  sba.toString() );
+    map.put( "payload",     sbb.toString() );
+    return sub.replace( JS_TEMPLATE_PAYLOAD );
+  }
+
+  /**
+   * Running this main method will scan for endpoint classes and
+   * generate javascript. The first parameter is the name of a base
+   * Java package within which to scan. The second parameter is
+   * the name of the output file.
+   * 
+   * @param args Expects an array of two parameters.
+   */
   public static void main( String[] args )
   {
     System.out.println( "Endpoint Scanner running..." );

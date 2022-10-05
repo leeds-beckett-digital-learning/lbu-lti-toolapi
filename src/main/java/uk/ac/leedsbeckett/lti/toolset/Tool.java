@@ -19,11 +19,26 @@ import javax.servlet.ServletContext;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
 
 /**
- *
+ * The interface that tools must implement.
+ * 
  * @author maber01
  */
 public interface Tool
 {
+  /**
+   * All tool implementations are initalized with a ServletContext.
+   * 
+   * @param ctx The ServletContext
+   */
   public void init( ServletContext ctx );
+  
+  /**
+   * Each tool must know how to create a ToolLaunchState using LtiClaims
+   * and ToolSetLtiState that were created by the API's launch servlet.
+   * 
+   * @param lticlaims LTI claims from the platform that started the launch.
+   * @param state The LTI state object.
+   * @return A tool launch state to place in the LTI state object.
+   */
   public ToolLaunchState createToolLaunchState( LtiClaims lticlaims, ToolSetLtiState state );
 }

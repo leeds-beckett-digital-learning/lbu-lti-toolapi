@@ -15,16 +15,11 @@
  */
 package uk.ac.leedsbeckett.lti.toolset.websocket;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-import java.lang.annotation.Annotation;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.commons.text.StringSubstitutor;
 
 /**
- *
+ * A class that holds information about a handler method from an endpoint.
+ * 
  * @author maber01
  */
 public class HandlerMethodRecord
@@ -32,7 +27,14 @@ public class HandlerMethodRecord
     final String name;
     final Method method;
     final Class<?> parameterClass;
-    
+   
+    /**
+     * Instantiate the class providing values for the final fields.
+     * 
+     * @param name Name of the message.
+     * @param method The reflected method.
+     * @param parameterClass The class of the message that is to be handled.
+     */
     public HandlerMethodRecord( String name, Method method, Class<?> parameterClass )
     {
       this.name = name;
@@ -40,16 +42,31 @@ public class HandlerMethodRecord
       this.parameterClass = parameterClass;
     }
 
+    /**
+     * Get the name of the message.
+     * 
+     * @return The name.
+     */
     public String getName()
     {
       return name;
     }
 
+    /**
+     * Get the reflected method.
+     * 
+     * @return The method.
+     */
     public Method getMethod()
     {
       return method;
     }
 
+    /**
+     * Get the parameter class.
+     * 
+     * @return The class.
+     */
     public Class<?> getParameterClass()
     {
       return parameterClass;

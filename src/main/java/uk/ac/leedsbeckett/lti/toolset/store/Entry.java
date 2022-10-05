@@ -16,13 +16,30 @@
 package uk.ac.leedsbeckett.lti.toolset.store;
 
 /**
- *
+ * A template class for entries that will go in a cache backed store.
+ * 
  * @author maber01
- * @param <K>
+ * @param <K> The type of key used by the entry.
  */
 public abstract interface Entry<K>
 {
+  /**
+   * Get a key for this entry.
+   * 
+   * @return The key for this entry.
+   */
   public K getKey();
+  
+  /**
+   * Set the key for this entry before it is stored.
+   * 
+   * @param key The key value to set.
+   */
   public void setKey( K key );
+  
+  /**
+   * It is assumed that entries will need to be initialized so this will
+   * be called.
+   */
   public void initialize();
 }

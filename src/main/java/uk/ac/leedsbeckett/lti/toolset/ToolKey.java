@@ -16,7 +16,7 @@
 package uk.ac.leedsbeckett.lti.toolset;
 
 import uk.ac.leedsbeckett.lti.toolset.annotations.ToolMapping;
-import uk.ac.leedsbeckett.lti.util.TwoStringKey;
+import uk.ac.leedsbeckett.lti.toolset.util.TwoStringKey;
 
 /**
  * A key for tools based on LTI launch type and tool name passed
@@ -29,8 +29,8 @@ public class ToolKey extends TwoStringKey
   /**
    * Construct key based on two strings.
    * 
-   * @param type
-   * @param name 
+   * @param type The type of the tool - e.g. placement type.
+   * @param name The name of the tool.
    */
   public ToolKey( String type, String name )
   {
@@ -40,7 +40,7 @@ public class ToolKey extends TwoStringKey
   /**
    * Construct based on a tool mapping.
    * 
-   * @param mapping 
+   * @param mapping A mapping that encapsulates type and name.
    */
   public ToolKey( ToolMapping mapping )
   {

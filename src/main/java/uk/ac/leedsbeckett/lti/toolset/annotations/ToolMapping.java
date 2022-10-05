@@ -29,7 +29,24 @@ import java.lang.annotation.Target;
 @Target( ElementType.TYPE )
 public @interface ToolMapping
 {
+  /**
+   * Tool name that maps to the annotated tool.
+   * 
+   * @return The name.
+   */
   public String name();
+  
+  /**
+   * Tool type that maps to the annotated tool.
+   * 
+   * @return The type.
+   */
   public String type();
+  
+  /**
+   * The URI which the launch process should send the user to.
+   * 
+   * @return The URI.
+   */
   public String launchURI();
 }
