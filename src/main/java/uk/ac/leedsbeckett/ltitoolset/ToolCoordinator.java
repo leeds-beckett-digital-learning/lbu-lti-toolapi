@@ -117,7 +117,8 @@ public class ToolCoordinator implements ServletContainerInitializer
   @Override
   public void onStartup( Set<Class<?>> c, ServletContext ctx ) throws ServletException
   {
-    logger.info( "ToolCoordinator started." );
+    logger.info( "ToolCoordinator starting" );
+    logger.log( Level.INFO, "Context = {0}", ctx );
 
     // Put this coordinator in a place where servlets can find it
     ctx.setAttribute( this.getClass().getName(), this );
@@ -131,6 +132,8 @@ public class ToolCoordinator implements ServletContainerInitializer
     if ( sc != null )
       wsContextMap.put( sc, ctx );
 
+    logger.info( "ToolCoordinator mapped web socket container against context." );
+    
     // Process the set of classes
     processClasses( c, ctx );
     if ( toolSetMapping == null )
@@ -150,6 +153,12 @@ public class ToolCoordinator implements ServletContainerInitializer
    */
   private void processClasses(  Set<Class<?>> c, ServletContext ctx )
   {
+    if ( c == null )
+    {
+      logger.log( Level.WARNING, "No classes of interest found." );
+      return;
+    }
+    
     for ( Class<?> cl : c )
     {
       logger.log( Level.INFO, "My initalizer found this class: {0}", cl.getName() );
