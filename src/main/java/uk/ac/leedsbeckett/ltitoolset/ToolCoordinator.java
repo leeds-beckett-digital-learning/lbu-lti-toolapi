@@ -117,7 +117,7 @@ public class ToolCoordinator implements ServletContainerInitializer
   @Override
   public void onStartup( Set<Class<?>> c, ServletContext ctx ) throws ServletException
   {
-    logger.info( "ToolCoordinator starting" );
+    logger.info( "ToolCoordinator starting up..." );
     logger.log( Level.INFO, "Context = {0}", ctx );
 
     // Put this coordinator in a place where servlets can find it

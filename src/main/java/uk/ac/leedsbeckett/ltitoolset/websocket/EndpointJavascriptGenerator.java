@@ -20,9 +20,13 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.apache.commons.io.IOUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.reflections.Reflections;
 
@@ -35,59 +39,18 @@ import org.reflections.Reflections;
  */
 public class EndpointJavascriptGenerator
 {
-  static final String JS_SUPERCLASS = 
-    "/*===================================\n" +
-    "     Generated script, do not edit.  \n" +
-    "  ===================================*/\n" +
-    "\n\nclass Message\n" +
-    "{\n" +
-    "  constructor( messageType, payloadType )\n" +
-    "  {\n" +
-    "    this.id = nextid++;\n" +
-    "    this.messageType = messageType?messageType:null;\n" +
-    "    this.payloadType = payloadType?payloadType:null;\n" +
-    "    this.replyToId   = null;\n" +
-    "    this.payload     = null;\n" +
-    "  }\n" +
-    "  \n" +
-    "  toString()\n" +
-    "  {\n" +
-    "    var str = \"toolmessageversion1.0\\n\";\n" +
-    "    str += \"id:\" + this.id + \"\\n\";\n" +
-    "    if ( this.replyToId )\n" +
-    "      str += \"replytoid:\" + this.replyToId + \"\\n\";\n" +
-    "    if ( this.messageType )\n" +
-    "      str += \"messagetype:\" + this.messageType + \"\\n\";\n" +
-    "    if ( this.payloadType && this.payload )\n" +
-    "    {\n" +
-    "      str += \"payloadtype:\" + this.payloadType + \"\\npayload:\\n\" ;\n" +
-    "      str += JSON.stringify( this.payload );\n" +
-    "    }\n" +
-    "    return str;\n" +
-    "  }\n" +
-    "}\n\n\n";
-          
-  static final String JS_TEMPLATE = 
-    "class ${classname}Message extends Message\n" + 
-    "{\n" + 
-    "  constructor()\n" + 
-    "  {\n" + 
-    "    super( \"${messagetype}\", null );\n" + 
-    "    this.payload = null;\n" + 
-    "  }\n" + 
-    "}\n\n";
-
-  static final String JS_TEMPLATE_PAYLOAD = 
-    "class ${classname}Message extends Message\n" + 
-    "{\n" + 
-    "  constructor( ${parameters} )\n" + 
-    "  {\n" + 
-    "    super( \"${messagetype}\", \"${payloadtype}\" );\n" + 
-    "    this.payload = { ${payload} };\n" + 
-    "  }\n" + 
-    "}\n\n";
-
-
+  static String mainJS;
+  static String clientNoPayload;
+  static String clientPayload;
+  
+  static void loadResources() throws IOException
+  {
+    mainJS = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/main.js", StandardCharsets.UTF_8 );
+    clientNoPayload = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/clientmessageclass_nopayload.js", StandardCharsets.UTF_8 );
+    clientPayload = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/clientmessageclass_payload.js", StandardCharsets.UTF_8 );
+  }
+  
+  
   static String getJavaScriptClass( HandlerMethodRecord handler )
   {
     StringBuilder sba = new StringBuilder();
@@ -128,17 +91,20 @@ public class EndpointJavascriptGenerator
       }
     }
 
-    Map<String,String> map = new HashMap<>();
-    StringSubstitutor sub = new StringSubstitutor( map );
-    map.put( "classname",   handler.getName() );
-    map.put( "messagetype", handler.getName() );
+    String part;
     if ( handler.getParameterClass() == null )
-      return sub.replace( JS_TEMPLATE );        
-
-    map.put( "payloadtype", handler.getParameterClass().getName() );
-    map.put( "parameters",  sba.toString() );
-    map.put( "payload",     sbb.toString() );
-    return sub.replace( JS_TEMPLATE_PAYLOAD );
+    {
+      part = clientNoPayload.replace( "_SUBCLASS_", handler.getName() );
+      part = part.replace( "_MESSAGETYPE_", handler.getName() );
+      return part;        
+    }
+    
+    part = clientPayload.replace( "_SUBCLASS_", handler.getName() );
+    part = part.replace( "_MESSAGETYPE_", handler.getName() );
+    part = part.replace( "_PAYLOADTYPE_", handler.getParameterClass().getName() );
+    part = part.replace( "_PARAMETERS_",  sba.toString() );
+    part = part.replace( "_PAYLOAD_",     sbb.toString() );
+    return part;
   }
 
   /**
@@ -151,7 +117,7 @@ public class EndpointJavascriptGenerator
    */
   public static void main( String[] args )
   {
-    System.out.println( "Endpoint Scanner running..." );
+    System.out.println( "Endpoint Scanner starting..." );
     
     if ( args.length != 2 )
     {
@@ -161,9 +127,19 @@ public class EndpointJavascriptGenerator
     
     System.out.println( "Scan package     = " + args[0] );
     System.out.println( "Output file name = " + args[1] );
-    StringBuilder sb = new StringBuilder();
     
-    sb.append( JS_SUPERCLASS );
+    try
+    {
+      loadResources();
+    }
+    catch ( IOException ex )
+    {
+      System.err.println( "Unable to load javascript templates from class path." );
+      ex.printStackTrace();
+      System.exit( 1 );
+    }
+    
+    StringBuilder sb = new StringBuilder();
     
     Reflections r = new Reflections( args[0] );
     Set<Class<? extends ToolEndpoint>> set = r.getSubTypesOf( ToolEndpoint.class );
@@ -178,19 +154,24 @@ public class EndpointJavascriptGenerator
       catch ( Exception ex )
       {
         System.out.println( "Cannot process. " + ex.getMessage() ); 
+        ex.printStackTrace();
+        System.exit( 1 );
       }
     }
 
+    String complete = mainJS.replace( "CLASSES", sb.toString() );
+    
     try ( FileWriter fw = new FileWriter( args[1] ) )
     {
-      fw.append( sb.toString() );
+      fw.append( complete );
     }
     catch ( IOException ex )
     {
       System.err.println( "Unable to output javascript to file." );
+      ex.printStackTrace();
       System.exit( 1 );
     }
     
-    System.out.println( "Endpoint Scanner completed." );
+    System.out.println( "Endpoint Scanner completed normally." );
   }
 }
