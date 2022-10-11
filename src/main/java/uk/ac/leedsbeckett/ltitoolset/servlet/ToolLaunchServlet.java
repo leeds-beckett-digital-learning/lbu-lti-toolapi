@@ -80,10 +80,11 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     if ( tool != null )
     {
       state.setToolKey( toolKey );
-      ToolLaunchState pgastate = tool.createToolLaunchState( lticlaims, state );
+      ToolLaunchState toolstate = tool.supplyToolLaunchState( lticlaims, state );
+      tool.initToolLaunchState( toolstate, lticlaims, state );
       
       // If the state is changed it needs to be updated in the cache.
-      state.setAppSessionState( pgastate );
+      state.setToolLaunchState( toolstate );
       getLtiStateStore( request.getServletContext() ).updateState( state );
       
       if ( logger.isLoggable( Level.FINE ) )

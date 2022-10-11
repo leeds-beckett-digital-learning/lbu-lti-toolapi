@@ -19,9 +19,13 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.websocket.Session;
+import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
+import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
+import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
 
 /**
@@ -117,6 +121,13 @@ public abstract class ToolEndpoint
     
     return handlerMap;
   }
+
+
+  String stateid;
+  ToolSetLtiState state;
+  ToolLaunchState toolState;
+  ToolCoordinator toolCoordinator;
+  
   
   /**
    * Default constructor for ToolEndpoint.
@@ -124,6 +135,56 @@ public abstract class ToolEndpoint
   public ToolEndpoint()
   {
   }
+
+  public String getStateid()
+  {
+    return stateid;
+  }
+
+  public ToolSetLtiState getState()
+  {
+    return state;
+  }
+
+  public ToolCoordinator getToolCoordinator()
+  {
+    return toolCoordinator;
+  }
+
+  
+  
+  public void onOpen(Session session) throws IOException
+  {
+    toolCoordinator = ToolCoordinator.get( session.getContainer() );
+    List<String> list = session.getRequestParameterMap().get( "state" );
+    if ( list != null && list.size() == 1 )
+      stateid = list.get( 0 );
+    if ( stateid == null ) throw new IOException( "No state ID parameter provided in URL to web socket endpoint." );
+    logger.log(Level.INFO, "State ID = {0}", stateid);
+    state = toolCoordinator.getLtiStateStore().getState( stateid );
+    toolState = state.getToolLaunchState();
+    toolCoordinator.addWsSession( toolState.getResourceKey(), session );    
+  }
+  
+  public void onClose(Session session) throws IOException
+  {
+    toolCoordinator.removeWsSession( toolState.getResourceKey(), session );
+  }
+
+  public void onMessage(Session session, ToolMessage message) throws IOException
+  {
+    if ( !message.isValid() )
+    {
+      logger.log(Level.SEVERE, "Endpoint received invalid message: {0}", message.getRaw());
+      return;
+    }
+    
+    if ( dispatchMessage( session, message ) )
+      return;
+
+    logger.log( Level.WARNING, "Did not find handler for message." );
+  }
+ 
   
   /**
    * A method for use by subclasses that will handle an incoming message and
@@ -175,5 +236,18 @@ public abstract class ToolEndpoint
     return true;
   }
   
+  public void sendToolMessage( Session session, ToolMessage tm )
+  {
+    session.getAsyncRemote().sendObject( tm );    
+  }
+  
+  public void sendToolMessageToResourceUsers( ToolMessage tm )
+  {
+    for ( Session s : toolCoordinator.getWsSessionsForResource( toolState.getResourceKey() ) )
+    {
+      logger.info( "Telling a client." );
+      s.getAsyncRemote().sendObject( tm );
+    }
+  }
   
 }

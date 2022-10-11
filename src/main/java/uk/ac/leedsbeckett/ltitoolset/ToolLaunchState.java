@@ -16,6 +16,8 @@
 
 package uk.ac.leedsbeckett.ltitoolset;
 
+import java.io.Serializable;
+
 /**
  * This contains data that a user of the platform-wide tool might need.
  * Implementations for different tools will vary. Objects of this type are
@@ -23,6 +25,69 @@ package uk.ac.leedsbeckett.ltitoolset;
  * 
  * @author jon
  */
-public interface ToolLaunchState
+public class ToolLaunchState implements Serializable
 {
+  /**
+   * Many users (many states) may reference the same resource. It is 
+   * important that it doesn't hold a reference to the resource. So, it 
+   * holds a unique key to the resource. The resources themselves are
+   * put in a different cache.
+   */
+  private ResourceKey resourceKey;
+  
+  private String personId;
+  private String personName;
+  private String courseId;
+  private String courseTitle;
+
+  public ResourceKey getResourceKey()
+  {
+    return resourceKey;
+  }
+
+  public void setResourceKey( ResourceKey resourceKey )
+  {
+    this.resourceKey = resourceKey;
+  }
+
+  public String getPersonId()
+  {
+    return personId;
+  }
+
+  public void setPersonId( String personId )
+  {
+    this.personId = personId;
+  }
+
+  public String getPersonName()
+  {
+    return personName;
+  }
+
+  public void setPersonName( String personName )
+  {
+    this.personName = personName;
+  }
+
+  public String getCourseId()
+  {
+    return courseId;
+  }
+
+  public void setCourseId( String courseId )
+  {
+    this.courseId = courseId;
+  }
+
+  public String getCourseTitle()
+  {
+    return courseTitle;
+  }
+
+  public void setCourseTitle( String courseTitle )
+  {
+    this.courseTitle = courseTitle;
+  }
+  
 }

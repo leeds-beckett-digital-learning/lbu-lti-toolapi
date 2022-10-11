@@ -23,14 +23,14 @@ import uk.ac.leedsbeckett.lti.claims.LtiClaims;
  * 
  * @author maber01
  */
-public interface Tool
+public abstract class Tool
 {
   /**
    * All tool implementations are initalized with a ServletContext.
    * 
    * @param ctx The ServletContext
    */
-  public void init( ServletContext ctx );
+  public abstract void init( ServletContext ctx );
   
   /**
    * Each tool must know how to create a ToolLaunchState using LtiClaims
@@ -40,5 +40,15 @@ public interface Tool
    * @param state The LTI state object.
    * @return A tool launch state to place in the LTI state object.
    */
-  public ToolLaunchState createToolLaunchState( LtiClaims lticlaims, ToolSetLtiState state );
+  public abstract ToolLaunchState supplyToolLaunchState( LtiClaims lticlaims, ToolSetLtiState state );
+  
+  public void initToolLaunchState( ToolLaunchState toostate, LtiClaims lticlaims, ToolSetLtiState state )
+  {
+    toostate.setPersonId( state.getPersonId() );
+    toostate.setPersonName( state.getPersonName() );
+    toostate.setCourseId( lticlaims.getLtiContext().getId() );
+    toostate.setCourseTitle( lticlaims.getLtiContext().getLabel() );
+    ResourceKey rk = new ResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
+    toostate.setResourceKey( rk );    
+  }
 }

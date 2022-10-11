@@ -31,7 +31,7 @@ public class ToolSetLtiState extends LtiState implements Serializable
   /**
    * Data that relates to the course-content servlet.
    */
-  ToolLaunchState   appSessionState = null;
+  ToolLaunchState   toolLaunchState = null;
   
   ToolKey toolKey = null;
   
@@ -51,9 +51,9 @@ public class ToolSetLtiState extends LtiState implements Serializable
    * 
    * @return The course content state.
    */
-  public ToolLaunchState getAppSessionState()
+  public ToolLaunchState getToolLaunchState()
   {
-    return appSessionState;
+    return toolLaunchState;
   }
 
   /**
@@ -61,9 +61,9 @@ public class ToolSetLtiState extends LtiState implements Serializable
    * 
    * @param launchState The course content state.
    */
-  public void setAppSessionState( ToolLaunchState launchState )
+  public void setToolLaunchState( ToolLaunchState launchState )
   {
-    this.appSessionState = launchState;
+    this.toolLaunchState = launchState;
   }
 
   public ToolKey getToolKey()
