@@ -21,13 +21,8 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.commons.io.IOUtils;
-import org.apache.commons.text.StringSubstitutor;
 import org.reflections.Reflections;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointJavascriptProperties;
 
@@ -45,6 +40,11 @@ public class EndpointJavascriptGenerator
   static String clientNoPayload;
   static String clientPayload;
   
+  /**
+   * Load some javascript templates from resources.
+   * 
+   * @throws IOException Thrown if a file is missing from resource files.
+   */
   static void loadResources() throws IOException
   {
     endpointJS = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/endpoint.js", StandardCharsets.UTF_8 );
@@ -53,7 +53,14 @@ public class EndpointJavascriptGenerator
     clientPayload = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/clientmessageclass_payload.js", StandardCharsets.UTF_8 );
   }
   
-  
+  /**
+   * Build a javascript class definition for a client originated message and
+   * base that on properties of a handler method from a tool endpoint class.
+   * 
+   * @param handler
+   * @param prefix
+   * @return 
+   */
   static String getJavaScriptClass( HandlerMethodRecord handler, String prefix )
   {
     StringBuilder sba = new StringBuilder();
@@ -110,7 +117,13 @@ public class EndpointJavascriptGenerator
     return part;
   }
 
-  
+  /**
+   * For a given subclass of ToolMessageName, compute a list of javascript
+   * object representations representing the constants in the enum.
+   * 
+   * @param clasz The class to work on.
+   * @return Some javascript
+   */
   static String getJavascriptServerMessages( Class<? extends ToolMessageName> clasz )
   {
     StringBuilder sb = new StringBuilder();
@@ -138,7 +151,7 @@ public class EndpointJavascriptGenerator
    * Running this main method will scan for endpoint classes and
    * generate javascript. The first parameter is the name of a base
    * Java package within which to scan. The second parameter is
-   * the name of the output file.
+   * the name of the directory to which files will be saved.
    * 
    * @param args Expects an array of two parameters.
    */

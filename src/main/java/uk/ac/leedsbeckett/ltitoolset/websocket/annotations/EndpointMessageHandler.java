@@ -21,7 +21,12 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This annotates methods in a websocket endpoint. 
+ * This annotates methods in a websocket endpoint. If no name is specified
+ * the prefix 'handle' will be taken off the method name and the remainder
+ * will be used as the message name. A javascript class will be created
+ * for use by client software to construct a message and the class will be
+ * named using this property. Client messages will be automatically dispatched
+ * to the right handler based on the message name.
  * 
  * @author maber01
  */

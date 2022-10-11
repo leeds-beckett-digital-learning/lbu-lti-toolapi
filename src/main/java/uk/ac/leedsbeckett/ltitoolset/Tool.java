@@ -33,22 +33,28 @@ public abstract class Tool
   public abstract void init( ServletContext ctx );
   
   /**
-   * Each tool must know how to create a ToolLaunchState using LtiClaims
-   * and ToolSetLtiState that were created by the API's launch servlet.
+   * Each tool must know how to create a ToolLaunchState using its preferred
+   * subclass.
    * 
-   * @param lticlaims LTI claims from the platform that started the launch.
-   * @param state The LTI state object.
    * @return A tool launch state to place in the LTI state object.
    */
-  public abstract ToolLaunchState supplyToolLaunchState( LtiClaims lticlaims, ToolSetLtiState state );
+  public abstract ToolLaunchState supplyToolLaunchState();
   
-  public void initToolLaunchState( ToolLaunchState toostate, LtiClaims lticlaims, ToolSetLtiState state )
+  /**
+   * Initialises the ToolLaunchState. Subclasses that override this method
+   * should start by using super to call this method implementation first.
+   * 
+   * @param toolstate The tool state that needs to be initialised.
+   * @param lticlaims Claims from the LTI launch process.
+   * @param state General LTI state.
+   */
+  public void initToolLaunchState( ToolLaunchState toolstate, LtiClaims lticlaims, ToolSetLtiState state )
   {
-    toostate.setPersonId( state.getPersonId() );
-    toostate.setPersonName( state.getPersonName() );
-    toostate.setCourseId( lticlaims.getLtiContext().getId() );
-    toostate.setCourseTitle( lticlaims.getLtiContext().getLabel() );
+    toolstate.setPersonId( state.getPersonId() );
+    toolstate.setPersonName( state.getPersonName() );
+    toolstate.setCourseId( lticlaims.getLtiContext().getId() );
+    toolstate.setCourseTitle( lticlaims.getLtiContext().getLabel() );
     ResourceKey rk = new ResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
-    toostate.setResourceKey( rk );    
+    toolstate.setResourceKey( rk );    
   }
 }

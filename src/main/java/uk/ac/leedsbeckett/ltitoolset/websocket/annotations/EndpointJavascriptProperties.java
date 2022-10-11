@@ -21,14 +21,37 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- *
+ * This annotation is used on ToolEndpoint implementations to set
+ * properties for the generation of Javascript for use on the client side
+ * to access the endpoint.
+ * 
  * @author maber01
  */
 @Retention( RetentionPolicy.RUNTIME )
 @Target( ElementType.TYPE )
 public @interface EndpointJavascriptProperties
 {
+  /**
+   * The name of the javascript module AND the name of the value that
+   * is exported from the module.
+   * 
+   * @return The name of the module.
+   */
   String module();
+  
+  /**
+   * A prefix to use in the generation of variables. (Currently ignored.)
+   * 
+   * @return A string property.
+   */
   String prefix();
+  
+  /**
+   * The name of an enum class that has constants representing each of the
+   * server messages that might be sent to a client. The class must implement
+   * ToolMessageName.
+   * 
+   * @return The enum name including package.
+   */
   String messageEnum();
 }

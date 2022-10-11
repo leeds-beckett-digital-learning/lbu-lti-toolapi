@@ -56,19 +56,6 @@ const lbultitoolapi = (function () {
     }
   };
   
-  lib.ServerMessage = class
-  {
-    constructor( id, replyToId, messageType, payloadType, payload )
-    {
-      this.id = id;
-      this.replyToId   = replyToId;
-      this.messageType = messageType;
-      this.payloadType = payloadType;
-      this.payload     = payload;
-    }
-  };
-
-
   lib.ToolSocket = class
   {
     wsuri;

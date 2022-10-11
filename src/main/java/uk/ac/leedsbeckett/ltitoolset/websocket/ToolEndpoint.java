@@ -136,23 +136,45 @@ public abstract class ToolEndpoint
   {
   }
 
+  /**
+   * After the endpoint is open, get the LTI state ID.
+   * 
+   * @return The ID as string.
+   */
   public String getStateid()
   {
     return stateid;
   }
 
+  /**
+   * After the endpoint is open, get the LTI state object.
+   * 
+   * @return The state.
+   */
   public ToolSetLtiState getState()
   {
     return state;
   }
 
+  /**
+   * Get the ToolCoordinator for the tool-set that this endpoint is working in.
+   * 
+   * @return The ToolCoordinator instance.
+   */
   public ToolCoordinator getToolCoordinator()
   {
     return toolCoordinator;
   }
 
   
-  
+  /**
+   * Subclasses should call this first via super when their overriden onOpen method
+   * is called. After, other setting up can be done. Getters will return
+   * valid values after this has been called.
+   * 
+   * @param session The session that the endpoint originates from.
+   * @throws IOException Only thrown if the state ID is missing.
+   */
   public void onOpen(Session session) throws IOException
   {
     toolCoordinator = ToolCoordinator.get( session.getContainer() );
@@ -166,11 +188,29 @@ public abstract class ToolEndpoint
     toolCoordinator.addWsSession( toolState.getResourceKey(), session );    
   }
   
+  /**
+   * Subclasses should call this from their own onClose method. Important to
+   * call in order to keep track of endpoints that are currently accessing the
+   * same resource.
+   * 
+   * @param session The session this endpoint originated from.
+   * @throws IOException Unlikely to be thrown.
+   */
   public void onClose(Session session) throws IOException
   {
     toolCoordinator.removeWsSession( toolState.getResourceKey(), session );
   }
 
+  /**
+   * Subclasses should use 'super' to call this when their own onMessage
+   * method is called. Probably no other processing will be required. This
+   * implementation examines the message and calls the appropriate annotated
+   * handler method.
+   * 
+   * @param session The session this endpoint originated from.
+   * @param message The incoming message from the client that needs processing.
+   * @throws IOException Exception that aborted processing.
+   */
   public void onMessage(Session session, ToolMessage message) throws IOException
   {
     if ( !message.isValid() )
@@ -187,15 +227,15 @@ public abstract class ToolEndpoint
  
   
   /**
-   * A method for use by subclasses that will handle an incoming message and
-   * dispatch it to the right handler method using reflection.
+   * Takes an incoming message from the client end of the socket and
+   * dispatches it to the right handler method using reflection.
    * 
    * @param session The websocket session that the message came in on.
    * @param message The websocket message.
    * @return Returns true if the message was recognised and handled, whether or not it resulted in an error or warning.
    * @throws IOException Thrown to abort message processing.
    */
-  public boolean dispatchMessage( Session session, ToolMessage message ) throws IOException
+  private boolean dispatchMessage( Session session, ToolMessage message ) throws IOException
   {
     logger.log(Level.INFO, "dispatchMessage type = {0}", message.getMessageType());
     HandlerMethodRecord record = getHandlerMap( this.getClass() ).get( message.getMessageType() );
@@ -236,11 +276,24 @@ public abstract class ToolEndpoint
     return true;
   }
   
+  /**
+   * Send the tool message from this server to the client.
+   * 
+   * @param session The session which should send the message.
+   * @param tm The message to send.
+   */
   public void sendToolMessage( Session session, ToolMessage tm )
   {
     session.getAsyncRemote().sendObject( tm );    
   }
   
+  /**
+   * Find all the sessions that are current and relate to the same resource
+   * key as for this endpoint. Then send a copy of the message to each of them.
+   * Will include the client connected to the other end of this socket.
+   * 
+   * @param tm The message to send.
+   */
   public void sendToolMessageToResourceUsers( ToolMessage tm )
   {
     for ( Session s : toolCoordinator.getWsSessionsForResource( toolState.getResourceKey() ) )

@@ -80,7 +80,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     if ( tool != null )
     {
       state.setToolKey( toolKey );
-      ToolLaunchState toolstate = tool.supplyToolLaunchState( lticlaims, state );
+      ToolLaunchState toolstate = tool.supplyToolLaunchState();
       tool.initToolLaunchState( toolstate, lticlaims, state );
       
       // If the state is changed it needs to be updated in the cache.
