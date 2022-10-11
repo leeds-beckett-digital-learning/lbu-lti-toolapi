@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package uk.ac.leedsbeckett.ltitoolset.annotations;
+package uk.ac.leedsbeckett.ltitoolset.websocket.annotations;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -21,28 +21,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * This annotation is applied to a class to indicates mappings for
- * the tool set.
- * 
+ *
  * @author maber01
  */
 @Retention( RetentionPolicy.RUNTIME )
 @Target( ElementType.TYPE )
-public @interface ToolSetMapping
+public @interface EndpointJavascriptProperties
 {
-  /**
-   * Where in URL space, relative to the servlet context, where the standard 
-   * login servlet will be placed.
-   * 
-   * @return The URL.
-   */
-  public String loginUrl();
-  
-  /**
-   * Where in URL space, relative to the servlet context, where the standard 
-   * launch servlet will be placed.
-   * 
-   * @return The URL.
-   */
-  public String launchUrl();   
+  String module();
+  String prefix();
+  String messageEnum();
 }

@@ -6,6 +6,10 @@ apply plugin: 'maven-publish'
 description = 'LBU-LTI-ToolApi'
 group = 'uk.ac.leedsbeckett'
 
+compileJava {
+    options.compilerArgs << '-Xlint:unchecked' 
+}
+
 // Publish javadoc and source packages along with built library
 java {
     withSourcesJar()

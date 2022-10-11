@@ -40,16 +40,24 @@ public class ToolMessage
    * Constructor for sender to prepare the message for sending.
    * 
    * @param replytoid ID of the message this is in reply to.
-   * @param messageType The type (name) of the message.
+   * @param name Name of message
    * @param payload The payload as a POJO.
    */
-  public ToolMessage( String replytoid, String messageType, Object payload )
+  public ToolMessage( String replytoid, ToolMessageName name, Object payload )
   {
     this.id = UUID.randomUUID().toString();
     this.replyToId = replytoid;
-    this.messageType = messageType;
+    this.messageType = name.getName();
     if ( payload != null )
+    {
+      if ( !payload.getClass().isAssignableFrom( name.getPayloadClass() ) )
+        throw new IllegalArgumentException( 
+                "Payload of message is wrong class. Found " + 
+                payload.getClass().toString() + 
+                " expected " + 
+                name.getPayloadClass().toString() );
       this.payloadType = payload.getClass().getName();
+    }
     this.payload = payload;
     this.raw = null;
   }

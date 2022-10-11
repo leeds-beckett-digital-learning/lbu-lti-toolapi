@@ -1,5 +1,5 @@
 
-lib._SUBCLASS_Message = class extends lib.ClientMessage 
+lib._SUBCLASS_Message = class extends lbultitoolapi.ClientMessage 
 { 
   constructor()
   {

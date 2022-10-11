@@ -37,15 +37,16 @@ public abstract class ToolEndpoint
   /**
    * A map of maps to keep track of handlers in implementations.
    */
-  static HashMap<Class,HashMap<String,HandlerMethodRecord>> classHandlerMaps = new HashMap<>();
+  static final HashMap<Class<? extends ToolEndpoint>,HashMap<String,HandlerMethodRecord>> classHandlerMaps = new HashMap<>();
   
+    
   /**
    * For a given sub-class of ToolEndpoint find a map of message names against handlers.
    * 
    * @param c The class.
    * @return The corresponding map.
    */
-  public static HashMap<String,HandlerMethodRecord> getHandlerMap( Class c )
+  public static HashMap<String,HandlerMethodRecord> getHandlerMap( Class<? extends ToolEndpoint> c )
   {
     synchronized ( classHandlerMaps )
     {
@@ -66,7 +67,7 @@ public abstract class ToolEndpoint
    * @param clasz The specific class.
    * @return The map.
    */
-  static HashMap<String,HandlerMethodRecord> createHandlerMap( Class clasz )
+  static HashMap<String,HandlerMethodRecord> createHandlerMap( Class<? extends ToolEndpoint> clasz )
   {
     HashMap<String,HandlerMethodRecord> handlerMap = new HashMap<>();
     
@@ -135,17 +136,17 @@ public abstract class ToolEndpoint
    */
   public boolean dispatchMessage( Session session, ToolMessage message ) throws IOException
   {
-    logger.log( Level.INFO, "dispatchMessage type = " + message.getMessageType() );
+    logger.log(Level.INFO, "dispatchMessage type = {0}", message.getMessageType());
     HandlerMethodRecord record = getHandlerMap( this.getClass() ).get( message.getMessageType() );
     if ( record == null ) return false;
     
     Class pc = record.getParameterClass();
-    logger.log( Level.INFO, "dispatchMessage found handler record " + pc );
+    logger.log(Level.INFO, "dispatchMessage found handler record {0}", pc);
     
     if ( pc != null )
     {
       if ( message.getPayload() == null ) return false;
-      logger.log( Level.INFO, "dispatchMessage payload class is " + message.getPayload().getClass() );
+      logger.log(Level.INFO, "dispatchMessage payload class is {0}", message.getPayload().getClass());
       if ( !(message.getPayload().getClass().isAssignableFrom( record.getParameterClass() ) ) )
         return false;
     }

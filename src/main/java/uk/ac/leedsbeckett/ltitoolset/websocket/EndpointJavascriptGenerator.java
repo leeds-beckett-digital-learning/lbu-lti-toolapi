@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.text.StringSubstitutor;
 import org.reflections.Reflections;
+import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointJavascriptProperties;
 
 /**
  * This class looks for methods of endpoints which are annotated with
@@ -39,19 +40,21 @@ import org.reflections.Reflections;
  */
 public class EndpointJavascriptGenerator
 {
-  static String mainJS;
+  static String endpointJS;
+  static String toolEndpointJS;
   static String clientNoPayload;
   static String clientPayload;
   
   static void loadResources() throws IOException
   {
-    mainJS = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/main.js", StandardCharsets.UTF_8 );
+    endpointJS = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/endpoint.js", StandardCharsets.UTF_8 );
+    toolEndpointJS = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/toolendpoint.js", StandardCharsets.UTF_8 );
     clientNoPayload = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/clientmessageclass_nopayload.js", StandardCharsets.UTF_8 );
     clientPayload = IOUtils.resourceToString( "/uk/ac/leedsbeckett/ltitoolset/websocket/js/clientmessageclass_payload.js", StandardCharsets.UTF_8 );
   }
   
   
-  static String getJavaScriptClass( HandlerMethodRecord handler )
+  static String getJavaScriptClass( HandlerMethodRecord handler, String prefix )
   {
     StringBuilder sba = new StringBuilder();
     StringBuilder sbb = new StringBuilder();
@@ -107,6 +110,30 @@ public class EndpointJavascriptGenerator
     return part;
   }
 
+  
+  static String getJavascriptServerMessages( Class<? extends ToolMessageName> clasz )
+  {
+    StringBuilder sb = new StringBuilder();
+    ToolMessageName[] names = clasz.getEnumConstants();
+    boolean started = false;
+    for ( ToolMessageName name : names )
+    {
+      if ( started )
+        sb.append( ",\n" );
+      started = true;
+      sb.append( "{\n" );
+      sb.append( "  name:\"" );
+      sb.append( name.getName() );
+      sb.append( "\",\n" );
+      sb.append( "  class:\"" );
+      sb.append( name.getPayloadClass().toString() );
+      sb.append( "\"\n}" );
+    }
+    sb.append( "\n" );
+    
+    return sb.toString();
+  }
+  
   /**
    * Running this main method will scan for endpoint classes and
    * generate javascript. The first parameter is the name of a base
@@ -118,15 +145,13 @@ public class EndpointJavascriptGenerator
   public static void main( String[] args )
   {
     System.out.println( "Endpoint Scanner starting..." );
-    
     if ( args.length != 2 )
     {
       System.err.println( "Needs two parameter." );
       System.exit( 1 );
     }
-    
     System.out.println( "Scan package     = " + args[0] );
-    System.out.println( "Output file name = " + args[1] );
+    System.out.println( "Output directory = " + args[1] );
     
     try
     {
@@ -139,17 +164,33 @@ public class EndpointJavascriptGenerator
       System.exit( 1 );
     }
     
-    StringBuilder sb = new StringBuilder();
     
     Reflections r = new Reflections( args[0] );
     Set<Class<? extends ToolEndpoint>> set = r.getSubTypesOf( ToolEndpoint.class );
+    // Each ToolEndpoint gets its own javascript file
     for ( Class<? extends ToolEndpoint> c : set )
     {
+      StringBuilder classes = new StringBuilder();
       System.out.println( "Processing " + c.getCanonicalName() );
+      Annotation[] ejpanns  = c.getAnnotationsByType( EndpointJavascriptProperties.class );
+      if ( ejpanns == null || ejpanns.length != 1 )
+      {
+        System.out.println( "ToolEndpoint lacks EndpointJavascriptProperties annotation. " ); 
+        System.exit( 1 );
+      }
+      EndpointJavascriptProperties ejp = (EndpointJavascriptProperties)ejpanns[0];
+      Class<? extends ToolMessageName> namesclass = ToolMessageName.forName( ejp.messageEnum() );
+      if ( namesclass == null )
+      {
+        System.out.println( "Could not find this enum class: " + ejp.messageEnum() ); 
+        System.exit( 1 );
+      }
+      
+      
       try
       {
         for ( HandlerMethodRecord handler : ToolEndpoint.getHandlerMap( c ).values() )
-          sb.append( getJavaScriptClass( handler ) );
+          classes.append( getJavaScriptClass( handler, ejp.prefix() ) );
       }
       catch ( Exception ex )
       {
@@ -157,13 +198,25 @@ public class EndpointJavascriptGenerator
         ex.printStackTrace();
         System.exit( 1 );
       }
+      
+      String complete = toolEndpointJS.replace( "CLASSES", classes.toString() );
+      complete = complete.replace( "ENDPOINTEXPORT", ejp.module() );
+      complete = complete.replace( "SERVERMESSAGENAMES", getJavascriptServerMessages( namesclass ) );
+      try ( FileWriter fw = new FileWriter( args[1] + "/" + ejp.module() + ".js" ) )
+      {
+        fw.append( complete );
+      }
+      catch ( IOException ex )
+      {
+        System.err.println( "Unable to output javascript to file." );
+        ex.printStackTrace();
+        System.exit( 1 );
+      }
     }
 
-    String complete = mainJS.replace( "CLASSES", sb.toString() );
-    
-    try ( FileWriter fw = new FileWriter( args[1] ) )
+    try ( FileWriter fw = new FileWriter( args[1] + "/endpoint.js" ) )
     {
-      fw.append( complete );
+      fw.append( endpointJS );
     }
     catch ( IOException ex )
     {
