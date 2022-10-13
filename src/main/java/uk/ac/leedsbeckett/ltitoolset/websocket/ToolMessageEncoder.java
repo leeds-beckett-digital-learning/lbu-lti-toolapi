@@ -69,7 +69,7 @@ public class ToolMessageEncoder implements Encoder.Text<ToolMessage>
         sb.append( tm.getPayloadType() );
         sb.append( "\n" );
         sb.append( "payload:\n" );
-        sb.append( mapper.writeValueAsString( tm.payload ) );
+        sb.append( mapper.writerWithDefaultPrettyPrinter().writeValueAsString( tm.payload ) );
       }
       catch ( JsonProcessingException ex )
       {
