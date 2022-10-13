@@ -15,32 +15,37 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.util;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 
 /**
  * A little utility that provides a key for hashmaps based on a pair of
- * strings.
+ * strings. Subclasses must override the constructor.
  * 
  * @author maber01
  */
 public class TwoStringKey implements Serializable
 {
+  @JsonIgnore
   private final String a;
+  
+  @JsonIgnore
   private final String b;
   
-  public TwoStringKey( String a, String b )
+  protected TwoStringKey( String a, String b )
   {
     assert( a != null && b != null );
     this.a = a;
     this.b = b;
   }
 
-  public String getA()
+  
+  protected String getA()
   {
     return a;
   }
 
-  public String getB()
+  protected String getB()
   {
     return b;
   }
