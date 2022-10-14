@@ -15,8 +15,11 @@
  */
 package uk.ac.leedsbeckett.ltitoolset;
 
+import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecordPredicate;
 import java.lang.reflect.InvocationTargetException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.function.Predicate;
@@ -43,6 +46,8 @@ import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolSetMapping;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLaunchServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLoginServlet;
+import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
+import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecord;
 
 /**
  * There is a one to one relationship between instances of this and 
@@ -102,8 +107,9 @@ public class ToolCoordinator implements ServletContainerInitializer
   private ToolSetMapping toolSetMapping = null;
 
   // WebSocket Endpoint related stuff
-  private final HashMap<ResourceKey,CopyOnWriteArraySet<Session>> wssessionlistmap = new HashMap<>();
-  ClosedSessionPredicate closedsessionpredicate = new ClosedSessionPredicate();
+  private final HashMap<ResourceKey,HashMap<String,ToolEndpointSessionRecord>> wssessionlistmap = new HashMap<>();
+  private final HashMap<String,ToolEndpointSessionRecord> allWsSessions = new HashMap<>();
+  OpenSessionPredicate opensessionpredicate = new OpenSessionPredicate();
 
   /**
    * A service record in the META-INF resource of the API jar file fill ensure
@@ -339,43 +345,116 @@ public class ToolCoordinator implements ServletContainerInitializer
     return lticonfig;
   }  
   
+  private void appendSessionLog( StringBuilder sb, ToolEndpointSessionRecord record )
+  {
+    sb.append( "    sid = " )
+      .append( record.getEndpoint().getStateid() )
+      .append( " Resource Key = " )
+      .append( record.getEndpoint().getToolState().getResourceKey() )
+      .append( "\n" );
+  }
+  
+  private void logWsSessions()
+  {
+    StringBuilder sb = new StringBuilder();
+    synchronized ( wssessionlistmap )
+    {
+      sb.append( "All Sessions: \n" );
+      for ( String sid : allWsSessions.keySet() )
+      {
+        ToolEndpointSessionRecord record = allWsSessions.get( sid ); 
+        appendSessionLog( sb, record );
+      }
+      sb.append( "Sessions by resource key: \n" );
+      for ( ResourceKey key : wssessionlistmap.keySet() )
+      {
+        sb.append( " Resource key: " ).append( key.toString() ).append( "\n" );
+        HashMap<String,ToolEndpointSessionRecord> map = wssessionlistmap.get( key );
+        for ( ToolEndpointSessionRecord record : map.values() )
+          appendSessionLog( sb, record );
+      }
+    }    
+    logger.fine( sb.toString() );
+  }
+  
   
   /**
-   * Keep track of a web socket session. That may be needed so that 
-   * messages can be multicast to all client endpoints associated with
-   * a specific resource.
+   * Keep track of a web socket session.That may be needed so that 
+ messages can be multicast to all client endpoints associated with
+ a specific resource.
    * 
-   * @param key The key of a specific platform resource.
+   * @param endpoint The endpoint that has just been opened.
    * @param session The session to add.
    */
-  public void addWsSession( ResourceKey key, Session session )
+  public void addWsSession( ToolEndpoint endpoint, Session session )
   {
     synchronized ( wssessionlistmap )
     {
-      CopyOnWriteArraySet<Session> set = wssessionlistmap.get( key );
+      ResourceKey key = endpoint.getToolState().getResourceKey();
+      HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
       if ( set == null )
       {
-        set = new CopyOnWriteArraySet<>();
+        set = new HashMap<>();
         wssessionlistmap.put( key, set );
       }
-      set.add( session );
+      set.put(endpoint.getStateid(), new ToolEndpointSessionRecord( endpoint, session ) );
+      allWsSessions.put(endpoint.getStateid(), new ToolEndpointSessionRecord( endpoint, session ) );
+      if ( logger.isLoggable( Level.FINE ) )
+        logWsSessions();
     }
   }
   
   /**
    * Remove a web socket session because it has shut down.
    * 
-   * @param key The key of the specific platform resource.
-   * @param session The session to remove.
+   * @param endpoint The endpoint that has just been stopped.
    */
-  public void removeWsSession( ResourceKey key, Session session )
+  public void removeWsSession( ToolEndpoint endpoint )
   {
     synchronized ( wssessionlistmap )
     {
-      CopyOnWriteArraySet<Session> set = wssessionlistmap.get( key );
-      if ( set == null ) return;
-      set.remove( session );
+      allWsSessions.remove( endpoint.getStateid() );
+      ResourceKey key = endpoint.getToolState().getResourceKey();
+      HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
+      if ( set != null )
+        set.remove( endpoint.getStateid() );
+      if ( logger.isLoggable( Level.FINE ) )
+        logWsSessions();
     }
+  }
+  
+  /**
+   * Get a set of web socket sessions that have been registered against
+   * a specific platform resource.Probably the intention is to multicast
+   * a message to them all.
+   * 
+   * @param predicate A predicate to select sessions.
+   * @return The set.
+   */
+  public Set<Session> getWsSessions( ToolEndpointSessionRecordPredicate predicate )
+  {
+    StringBuilder sb = new StringBuilder();
+    sb.append( "Debugging output: \n" );
+    synchronized ( wssessionlistmap )
+    {
+      HashSet<Session> sessions = new HashSet<>();
+      for ( ToolEndpointSessionRecord record : allWsSessions.values() )
+      {
+        sb.append( "Checking: \n" );
+        this.appendSessionLog( sb, record );
+        if ( opensessionpredicate.test( record.getSession() ) )
+        {
+          sb.append( "OPEN \n" );
+          if ( predicate.test( record ) )
+          {
+            sb.append( "PASSED TEST\n" );
+            sessions.add( record.getSession() );
+          }
+        }
+      }
+      logger.fine( sb.toString() );
+      return sessions;
+    }      
   }
   
   /**
@@ -388,12 +467,25 @@ public class ToolCoordinator implements ServletContainerInitializer
    */
   public Set<Session> getWsSessionsForResource( ResourceKey key )
   {
+    StringBuilder sb = new StringBuilder();
+    sb.append( "Debugging output: \n" );
     synchronized ( wssessionlistmap )
     {
-      CopyOnWriteArraySet<Session> set = wssessionlistmap.get( key );
+      HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
       if ( set == null ) return null;
-      set.removeIf( closedsessionpredicate );
-      return set;
+      HashSet<Session> sessions = new HashSet<>();
+      for ( ToolEndpointSessionRecord record : set.values() )
+      {
+        sb.append( "Checking: \n" );
+        this.appendSessionLog( sb, record );
+        if ( opensessionpredicate.test( record.getSession() ) )
+        {
+          sb.append( "ADDED\n" );
+          sessions.add( record.getSession() );
+        }
+      }
+      logger.fine( sb.toString() );
+      return sessions;
     }  
   }
   
@@ -401,12 +493,12 @@ public class ToolCoordinator implements ServletContainerInitializer
    * A handy utility for use with Set.removeIf()
    * 
    */
-  class ClosedSessionPredicate implements Predicate<Session>
+  class OpenSessionPredicate implements Predicate<Session>
   {
     @Override
     public boolean test( Session t )
     {
-      return !t.isOpen();
+      return t.isOpen();
     }
   }
 }

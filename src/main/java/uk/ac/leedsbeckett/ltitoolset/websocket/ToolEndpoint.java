@@ -156,6 +156,11 @@ public abstract class ToolEndpoint
     return state;
   }
 
+  public ToolLaunchState getToolState()
+  {
+    return toolState;
+  }  
+  
   /**
    * Get the ToolCoordinator for the tool-set that this endpoint is working in.
    * 
@@ -185,7 +190,7 @@ public abstract class ToolEndpoint
     logger.log(Level.INFO, "State ID = {0}", stateid);
     state = toolCoordinator.getLtiStateStore().getState( stateid );
     toolState = state.getToolLaunchState();
-    toolCoordinator.addWsSession( toolState.getResourceKey(), session );    
+    toolCoordinator.addWsSession( this, session );    
   }
   
   /**
@@ -198,7 +203,7 @@ public abstract class ToolEndpoint
    */
   public void onClose(Session session) throws IOException
   {
-    toolCoordinator.removeWsSession( toolState.getResourceKey(), session );
+    toolCoordinator.removeWsSession( this );
   }
 
   /**
@@ -268,13 +273,21 @@ public abstract class ToolEndpoint
     {
       // method threw exception
       Throwable original = ex.getCause();
-      if ( original instanceof IOException )
-        throw (IOException)original;
-      logger.log( Level.SEVERE, "Web socket message handler error.", ex );
+      if ( original instanceof HandlerAlertException )
+        processHandlerAlert(session, (HandlerAlertException) original);
+      else
+      {
+        if ( original instanceof IOException )
+          throw (IOException)original;
+        logger.log( Level.SEVERE, "Web socket message handler error.", ex );
+      }
     }
     
     return true;
   }
+  
+  public abstract void processHandlerAlert( Session session, HandlerAlertException haex ) throws IOException;
+  
   
   /**
    * Send the tool message from this server to the client.
@@ -285,6 +298,21 @@ public abstract class ToolEndpoint
   public void sendToolMessage( Session session, ToolMessage tm )
   {
     session.getAsyncRemote().sendObject( tm );    
+  }
+  
+  /**
+   * Send the tool message from this server to the client.
+   * 
+   * @param predicate Object that defines which sessions will receive messages.
+   * @param tm The message to send.
+   */
+  public void sendToolMessage( ToolEndpointSessionRecordPredicate predicate, ToolMessage tm )
+  {
+    for ( Session s : toolCoordinator.getWsSessions( predicate ) )
+    {
+      logger.info( "Telling a client." );
+      s.getAsyncRemote().sendObject( tm );
+    }
   }
   
   /**
