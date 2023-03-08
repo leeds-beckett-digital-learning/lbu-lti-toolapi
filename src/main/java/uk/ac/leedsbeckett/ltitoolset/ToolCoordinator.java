@@ -15,13 +15,21 @@
  */
 package uk.ac.leedsbeckett.ltitoolset;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecordPredicate;
 import java.lang.reflect.InvocationTargetException;
-import java.util.ArrayList;
+import java.security.KeyPair;
+import java.security.PrivateKey;
+import java.security.interfaces.RSAPublicKey;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.UUID;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,6 +52,9 @@ import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolSetMapping;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.HttpClient;
+import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
+import uk.ac.leedsbeckett.ltitoolset.servlet.ToolJwksServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLaunchServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLoginServlet;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
@@ -99,13 +110,19 @@ public class ToolCoordinator implements ServletContainerInitializer
   }
 
   
-  
   private final HashMap<ToolKey,Tool> toolMap = new HashMap<>();  
   private final HashMap<ToolKey,ToolMapping> toolMappingMap = new HashMap<>();  
   private final LtiConfiguration lticonfig = new LtiConfiguration();
+  private final ToolConfiguration toolconfig = new ToolConfiguration();
   private LtiStateStore<ToolSetLtiState> ltistatestore;
   private ToolSetMapping toolSetMapping = null;
 
+  // Service call signing stuff:
+  private String kid;
+  private RSAPublicKey publicKey;
+  private String jwks;
+  private PrivateKey privateKey;
+  
   // WebSocket Endpoint related stuff
   private final HashMap<ResourceKey,HashMap<String,ToolEndpointSessionRecord>> wssessionlistmap = new HashMap<>();
   private final HashMap<String,ToolEndpointSessionRecord> allWsSessions = new HashMap<>();
@@ -128,6 +145,7 @@ public class ToolCoordinator implements ServletContainerInitializer
 
     // Put this coordinator in a place where servlets can find it
     ctx.setAttribute( this.getClass().getName(), this );
+   
     
     // Spec. says that web socket ServerContainer will be found in this attribute:
     // ServerContainer is a subclass of websocketcontainer specialised to servers.
@@ -148,7 +166,16 @@ public class ToolCoordinator implements ServletContainerInitializer
       initServlets( ctx );
     
     initLtiConfiguration( ctx );
+    initToolConfiguration( ctx );
+    
+    if ( !StringUtils.isBlank( toolconfig.getBackchannelProxy() ) )
+    {
+      logger.log(Level.INFO, "Setting proxy to {0}", toolconfig.getBackchannelProxy());
+      HttpClient.setHttpsProxyUrl( toolconfig.getBackchannelProxy() );
+    }
+
     initLtiStateStore();
+    initServiceKeyPairs();
   }
 
   /**
@@ -244,9 +271,11 @@ public class ToolCoordinator implements ServletContainerInitializer
   {
     ServletRegistration loginReg  = ctx.addServlet( "ToolLoginServlet",  ToolLoginServlet.class );
     ServletRegistration launchReg = ctx.addServlet( "ToolLaunchServlet", ToolLaunchServlet.class );
+    ServletRegistration jwksReg   = ctx.addServlet( "ToolJwksServlet",   ToolJwksServlet.class );
     
     loginReg.addMapping(  toolSetMapping.loginUrl()  );
     launchReg.addMapping( toolSetMapping.launchUrl() );
+    jwksReg.addMapping(   toolSetMapping.jwksUrl()   );
   }
   
   /**
@@ -337,6 +366,22 @@ public class ToolCoordinator implements ServletContainerInitializer
   }  
   
   /**
+   * Load the LTI configuration file from a standard location.
+   * 
+   * @param context 
+   */
+  private void initToolConfiguration( ServletContext context )
+  {
+    String configpath = context.getRealPath( "/WEB-INF/toolconfig.json" );
+    logger.log( Level.INFO, "Loading Tool configuration from: {0}", configpath );
+    if ( !StringUtils.isEmpty( configpath ) )
+    {
+      toolconfig.load( configpath );
+      logger.log( Level.INFO, "Raw configuration: {0}", toolconfig.getRawConfiguration() );
+    }
+  }  
+  
+  /**
    * Get the LTI configuration.
    * @return The config object.
    */
@@ -344,6 +389,59 @@ public class ToolCoordinator implements ServletContainerInitializer
   {
     return lticonfig;
   }  
+  
+  /**
+   * Simple implementation for time being - generate one key pair at startup
+   * and don't bother storing it. Make a JSON representation of the public key.
+   */
+  private void initServiceKeyPairs()
+  {
+    // Use JJWT library to create a suitable key pair for the signing algo
+    // we intend to use.
+    KeyPair pair = Keys.keyPairFor( SignatureAlgorithm.RS256 );
+    if ( pair.getPublic() instanceof RSAPublicKey )
+    {
+      logger.log( Level.FINE, "Setting up RSA key pair for use." );
+      this.kid = UUID.randomUUID().toString();
+      this.publicKey = (RSAPublicKey) pair.getPublic();
+      this.privateKey = pair.getPrivate();
+      
+      Map<String, Object> values = new HashMap<>();
+      values.put("kty", publicKey.getAlgorithm()); // getAlgorithm() returns kty not algorithm
+      values.put("kid", kid );
+      values.put("n", Base64.getUrlEncoder().encodeToString(publicKey.getModulus().toByteArray()));
+      values.put("e", Base64.getUrlEncoder().encodeToString(publicKey.getPublicExponent().toByteArray()));
+      values.put("alg", "RS256");
+      values.put("use", "sig");
+      
+      ObjectMapper mapper = new ObjectMapper();
+      try      
+      {
+        jwks = "{\"keys\":[" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString( values ) + "]}";
+        logger.log( Level.FINE, jwks );
+      }
+      catch ( JsonProcessingException ex )
+      {
+        logger.log( Level.SEVERE, "Failed to convert public key to JSON.", ex );
+      }
+    }
+  }
+  
+  public String getServiceJwks()
+  {
+    if ( jwks != null ) return jwks;
+    return "{\"keys\":[]}";
+  }
+  
+  public PrivateKey getPrivateKey()
+  {
+    return privateKey;
+  }
+  
+  public String getKeyId()
+  {
+    return kid;
+  }
   
   private void appendSessionLog( StringBuilder sb, ToolEndpointSessionRecord record )
   {

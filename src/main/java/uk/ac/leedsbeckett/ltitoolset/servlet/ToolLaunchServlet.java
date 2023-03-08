@@ -92,6 +92,10 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
         ObjectMapper mapper = new ObjectMapper();
         logger.fine( "Launch Claims" );
         logger.fine( mapper.writerWithDefaultPrettyPrinter().writeValueAsString( lticlaims ) );
+        
+        if ( lticlaims.getLtiNamesRoleService() != null )
+          logger.fine( "Contains claim for names/role service at " + lticlaims.getLtiNamesRoleService().getContextMembershipsUrl() );
+        
         logger.fine( "Launch State" );
         logger.fine( mapper.writerWithDefaultPrettyPrinter().writeValueAsString( state ) );
       }

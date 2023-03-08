@@ -15,9 +15,14 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.websocket;
 
+import io.jsonwebtoken.JwtBuilder;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
@@ -26,6 +31,8 @@ import javax.websocket.Session;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.AuthToken;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.HttpClient;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
 
 /**
@@ -128,6 +135,7 @@ public abstract class ToolEndpoint
   ToolLaunchState toolState;
   ToolCoordinator toolCoordinator;
   
+  AuthToken platformAuthToken=null;
   
   /**
    * Default constructor for ToolEndpoint.
@@ -171,6 +179,56 @@ public abstract class ToolEndpoint
     return toolCoordinator;
   }
 
+  
+  public synchronized AuthToken getPlatformAuthToken()
+  {
+    if ( platformAuthToken != null )
+      return platformAuthToken;
+    
+    // The url on the auth server
+    String url = toolCoordinator.getLtiConfiguration().getClientLtiConfiguration( state.getClientKey() ).getAuthTokenUrl();
+    
+    // Build a JSON object and sign it
+    Calendar c = Calendar.getInstance();
+    c.setTimeInMillis( System.currentTimeMillis() );
+
+    JwtBuilder jwtbuilder = Jwts.builder();
+    jwtbuilder.setIssuer( "lbu-lti-tools" );
+    jwtbuilder.setSubject( state.getClientId() );
+    jwtbuilder.setHeaderParam( "kid", toolCoordinator.getKeyId() );
+    jwtbuilder.setAudience( url );
+    jwtbuilder.setIssuedAt( c.getTime() );
+    c.add( Calendar.MINUTE, 5 );
+    jwtbuilder.setExpiration( c.getTime() );
+    jwtbuilder.setId( "shouldberandom_" + Long.toHexString( System.currentTimeMillis() ) );
+    jwtbuilder.signWith( toolCoordinator.getPrivateKey(), SignatureAlgorithm.RS256 );
+    
+    String jwtstring = jwtbuilder.compact();
+    logger.log(Level.INFO, "Compacted             = {0}", jwtstring );
+    
+    try
+    {
+      // Call the the authorization server by backchannel using HTTP client.
+      // POST to url using form encoding and send these parameters
+      // grant_type = 'client_credentials'
+      // client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+      // client_assertion = jwtstring
+      // scope = Hmmm...
+      String value = HttpClient.postAuthTokenRequest( url, jwtstring );
+      
+      // Now parse that value.
+      // and cache it
+      // Little bodge for now
+      return AuthToken.load( value );
+    }
+    catch ( IOException ex )
+    {
+      logger.log( Level.SEVERE, "IOException while trying to fetch auth token.", ex );
+      return null;
+    }
+    //return platformAuthToken;
+    
+  }
   
   /**
    * Subclasses should call this first via super when their overriden onOpen method

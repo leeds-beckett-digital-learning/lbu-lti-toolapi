@@ -45,4 +45,12 @@ public @interface ToolSetMapping
    * @return The URL.
    */
   public String launchUrl();   
+
+  /**
+   * In URL space, relative to the servlet context, where the standard 
+   * Jwks servlet (which supplies a list of current public keys) will be placed.
+   * 
+   * @return The URL.
+   */
+  public String jwksUrl();   
 }
