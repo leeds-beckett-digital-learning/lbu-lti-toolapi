@@ -57,4 +57,17 @@ public abstract class Tool
     ResourceKey rk = new ResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
     toolstate.setResourceKey( rk );    
   }
+  
+  /**
+   * Does the tool need to use Blackboard REST API? If one or more tools in the
+   * set do, then the tool coordinator should authenticate, get a token and
+   * regularly update the token.
+   * 
+   * @return True is one or more tools need Blackboard REST API.
+   */
+  public boolean usesBlackboardRest()
+  {
+    return false;
+  }
+  
 }

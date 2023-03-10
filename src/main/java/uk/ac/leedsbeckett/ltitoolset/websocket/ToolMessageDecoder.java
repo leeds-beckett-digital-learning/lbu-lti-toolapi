@@ -98,12 +98,12 @@ public class ToolMessageDecoder implements Decoder.Text<ToolMessage>
         if ( classname == null )
           throw new DecodeException( s, "Unknown type of payload in message." );
         if ( !ToolMessageTypeSet.isAllowed( classname ) )
-          throw new DecodeException( s, "Disallowed type of payload in message." );
+          throw new DecodeException( s, "Disallowed type of payload in message. " + classname );
         Class<?> c;
         try { c = Class.forName( classname ); }
         catch ( ClassNotFoundException ex )
         {
-          throw new DecodeException( s, "Unknown type of payload in message." );
+          throw new DecodeException( s, "Unknown type of payload in message. " + classname );
         }
         Object o = mapper.readValue( reader, c );
         if ( o == null )

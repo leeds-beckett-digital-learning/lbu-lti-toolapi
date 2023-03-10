@@ -18,6 +18,8 @@ package uk.ac.leedsbeckett.ltitoolset.backchannel;
 
 import java.io.IOException;
 import java.io.StringWriter;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
@@ -27,11 +29,20 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.AuthenticationException;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.AuthCache;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.protocol.HttpClientContext;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.routing.HttpRoutePlanner;
+import org.apache.http.impl.auth.BasicScheme;
+import org.apache.http.impl.client.BasicAuthCache;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
@@ -107,6 +118,87 @@ public class HttpClient
         if ( statusCode != HttpStatus.SC_OK )
           return null;
         return value;
+    }
+  }
+
+  public static String postBlackboardRestTokenRequest( String url, String uname, String secret ) throws IOException
+  {
+    HttpHost host = HttpHost.create( url );
+    
+    final BasicCredentialsProvider provider = new BasicCredentialsProvider();
+    
+    UsernamePasswordCredentials creds = new UsernamePasswordCredentials( uname, secret );
+    BasicScheme scheme = new BasicScheme();
+
+    // Add AuthCache to the execution context
+    final HttpClientContext context = HttpClientContext.create();    
+    final HttpPost httpPost = new HttpPost( url );
+    try { httpPost.addHeader( scheme.authenticate( creds, httpPost, context ) ); }
+    catch ( AuthenticationException ex ) { throw new IOException( "Unable to set auth header.", ex ); }
+    
+    final List<NameValuePair> params = new ArrayList<NameValuePair>();
+    params.add(new BasicNameValuePair("grant_type", "client_credentials" ));
+    httpPost.setEntity(new UrlEncodedFormEntity(params));
+    
+    logger.log( Level.INFO, "Executing POST on {0}", url );
+    HttpClientBuilder clientBuilder = HttpClients.custom();
+    if ( routePlanner != null )
+      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute(httpPost,context))
+    {
+      final int statusCode = response.getStatusLine().getStatusCode();
+      logger.log( Level.INFO, "Rxed status code {0}", statusCode );
+      logger.log( Level.INFO, "Rxed reason      {0}", response.getStatusLine().getReasonPhrase() );
+      logger.log( Level.INFO, "Content type = {0}", response.getEntity().getContentType() );
+      String value = IOUtils.toString( response.getEntity().getContent(), "ASCII" );
+      logger.log( Level.INFO, "Server returned {0}", value );
+      if ( statusCode != HttpStatus.SC_OK )
+        return null;
+      return value;
+    }
+  }
+  
+  public static JsonResult getBlackboardRest( 
+          String url, 
+          String token, 
+          List<NameValuePair> params,
+          Class<?> successClass,
+          Class<?> failClass ) throws IOException
+  {
+    URI target;
+    URIBuilder urib;
+    try
+    {
+      urib = new URIBuilder( url );
+      urib.addParameters( params );
+      target = urib.build();
+    }
+    catch ( URISyntaxException ex )
+    {
+      throw new IOException( "Unable to build uri", ex );
+    }
+    
+
+    final HttpGet httpGet = new HttpGet( target );
+    httpGet.addHeader( "Authorization", "Bearer " + token );
+    
+    
+    logger.log( Level.INFO, "Executing GET on {0}", target );
+    HttpClientBuilder clientBuilder = HttpClients.custom();
+    if ( routePlanner != null )
+      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute(httpGet))
+    {
+      return new JsonResult( 
+              response.getStatusLine(), 
+              response.getEntity().getContentType().getValue(), 
+              IOUtils.toString( response.getEntity().getContent(), "ASCII" ),
+              successClass,
+              failClass );
     }
   }
   

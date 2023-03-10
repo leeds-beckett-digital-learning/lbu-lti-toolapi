@@ -53,6 +53,9 @@ import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolSetMapping;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.HttpClient;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardConfiguration;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardPlatform;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardRestTokenStore;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolJwksServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLaunchServlet;
@@ -128,6 +131,13 @@ public class ToolCoordinator implements ServletContainerInitializer
   private final HashMap<String,ToolEndpointSessionRecord> allWsSessions = new HashMap<>();
   OpenSessionPredicate opensessionpredicate = new OpenSessionPredicate();
 
+  // Blackboard specific
+  private boolean usingBlackboardRest = false;
+  private BlackboardConfiguration blackboardconfig;
+  private BlackboardRestTokenStore blackboardresttokenstore;
+  private HashMap<String,BlackboardPlatform> blackboardplatformmap;
+  
+  
   /**
    * A service record in the META-INF resource of the API jar file fill ensure
    * that the web application container (e.g. tomcat) will load this class and
@@ -176,6 +186,9 @@ public class ToolCoordinator implements ServletContainerInitializer
 
     initLtiStateStore();
     initServiceKeyPairs();
+    
+    if ( usingBlackboardRest )
+      initBlackboardRest( ctx );
   }
 
   /**
@@ -230,6 +243,9 @@ public class ToolCoordinator implements ServletContainerInitializer
     {
       ToolKey key = new ToolKey( mapping );
       Tool tool = (Tool) clasz.getDeclaredConstructor().newInstance();
+      if ( tool.usesBlackboardRest() )
+        usingBlackboardRest = true;
+      
       toolMap.put( key, tool );
       toolMappingMap.put( key, mapping );
       tool.init( ctx );
@@ -380,6 +396,54 @@ public class ToolCoordinator implements ServletContainerInitializer
       logger.log( Level.INFO, "Raw configuration: {0}", toolconfig.getRawConfiguration() );
     }
   }  
+  
+  /**
+   * Load the LTI configuration file from a standard location.
+   * 
+   * @param context 
+   */
+  private void initBlackboardRest( ServletContext context )
+  {
+    String configpath = context.getRealPath( "/WEB-INF/blackboard.json" );
+    logger.log( Level.INFO, "Loading Blackboard configuration from: {0}", configpath );
+    if ( !StringUtils.isEmpty( configpath ) )
+    {
+      blackboardconfig = new BlackboardConfiguration();
+      blackboardconfig.load( configpath );
+      blackboardresttokenstore = new BlackboardRestTokenStore( blackboardconfig );
+      //blackboardresttokenstore.start();
+      blackboardplatformmap = new HashMap<>();
+    }
+  }  
+  
+  public BlackboardPlatform getBlackboardPlatform( String platform )
+  {
+    if ( blackboardplatformmap == null )
+    {
+      logger.log( Level.WARNING, "A Blackboard platform was requested but no tools declared a need for one." );
+      return null;
+    }
+    synchronized ( blackboardplatformmap )
+    {
+      BlackboardPlatform bp = blackboardplatformmap.get( platform );
+      if ( bp == null )
+      {
+        bp = new BlackboardPlatform( platform, blackboardresttokenstore );
+        blackboardplatformmap.put( platform, bp );
+      }
+      return bp;
+    }
+  }
+  
+  public String getBlackboardPlatformToken( String platform )
+  {
+    if ( blackboardresttokenstore == null )
+    {
+      logger.log( Level.WARNING, "A Blackboard platform token was requested but no tools declared a need for one." );
+      return null;
+    }
+    return blackboardresttokenstore.getPlatformToken( platform );
+  }
   
   /**
    * Get the LTI configuration.

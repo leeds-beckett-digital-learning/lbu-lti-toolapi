@@ -21,6 +21,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URL;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -33,6 +34,7 @@ import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.AuthToken;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.HttpClient;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardPlatform;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
 
 /**
@@ -135,7 +137,9 @@ public abstract class ToolEndpoint
   ToolLaunchState toolState;
   ToolCoordinator toolCoordinator;
   
+  String platformHost;
   AuthToken platformAuthToken=null;
+  
   
   /**
    * Default constructor for ToolEndpoint.
@@ -179,6 +183,15 @@ public abstract class ToolEndpoint
     return toolCoordinator;
   }
 
+  public String getPlatformHost()
+  {
+    return platformHost;
+  }
+  
+  public BlackboardPlatform getBlackboardPlatform()
+  {
+    return getToolCoordinator().getBlackboardPlatform( platformHost );
+  }
   
   public synchronized AuthToken getPlatformAuthToken()
   {
@@ -248,7 +261,12 @@ public abstract class ToolEndpoint
     logger.log(Level.INFO, "State ID = {0}", stateid);
     state = toolCoordinator.getLtiStateStore().getState( stateid );
     toolState = state.getToolLaunchState();
-    toolCoordinator.addWsSession( this, session );    
+    toolCoordinator.addWsSession( this, session );
+    // If it hasn't already been done for this class, map the handler methods.
+    getHandlerMap( this.getClass() );
+    String platform = getState().getPlatformName();
+    URL url = new URL( platform );
+    platformHost = url.getHost();
   }
   
   /**
