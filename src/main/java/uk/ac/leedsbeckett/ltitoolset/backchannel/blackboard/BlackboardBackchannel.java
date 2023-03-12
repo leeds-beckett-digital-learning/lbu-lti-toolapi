@@ -15,20 +15,16 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
 import org.apache.http.message.BasicNameValuePair;
-import uk.ac.leedsbeckett.ltitoolset.backchannel.HttpClient;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.JsonResult;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCoursesV3Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.RestExceptionMessage;
 
@@ -38,27 +34,59 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.RestExceptionMe
  * 
  * @author maber01
  */
-public class BlackboardPlatform
+public class BlackboardBackchannel extends Backchannel
 {
-  static final Logger logger = Logger.getLogger(BlackboardPlatform.class.getName() );
+  static final Logger logger = Logger.getLogger(BlackboardBackchannel.class.getName() );
   
   
   String platform;
-  BlackboardRestTokenStore blackboardresttokenstore;
+  String username;
+  String password;
+  
+  OAuth2Token blackboardAuthToken;
 
-  public BlackboardPlatform( String platform, BlackboardRestTokenStore blackboardresttokenstore )
+  public BlackboardBackchannel( BlackboardBackchannelKey key, String username, String password )
   {
-    this.platform = platform;
-    this.blackboardresttokenstore = blackboardresttokenstore;
-    
+    this.platform = key.getPlatform();
+    this.username = username;
+    this.password = password;
   }
+  
+  
+  public synchronized OAuth2Token getAuthToken()
+  {
+    if ( blackboardAuthToken != null )
+      return blackboardAuthToken;
+        
+    try
+    {
+      String url = "https://" + platform + "/learn/api/public/v1/oauth2/token";
+      JsonResult jresult = this.postBlackboardRestTokenRequest( url, username, password );
+      
+      if ( jresult.isSuccessful() )
+      {
+        blackboardAuthToken = (OAuth2Token)jresult.getResult();
+        return blackboardAuthToken;
+      }
+      return null;
+    }
+    catch ( IOException ex )
+    {
+      logger.log( Level.SEVERE, "IOException while trying to fetch auth token.", ex );
+      return null;
+    }
+  }
+ 
+  
+  
   
   public JsonResult getV3Courses( String courseId, String name )
   {
     if ( StringUtils.isBlank( courseId ) && StringUtils.isBlank( name ) )
       return null;
     
-    String token = blackboardresttokenstore.getPlatformToken( platform );
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
     String target = "https://" + platform + "/learn/api/public/v3/courses";
     ArrayList<NameValuePair> params = new ArrayList<>();
     
@@ -67,7 +95,7 @@ public class BlackboardPlatform
     
     try
     {
-      return HttpClient.getBlackboardRest( target, token, params, GetCoursesV3Results.class, RestExceptionMessage.class );
+      return getBlackboardRest( target, token, params, GetCoursesV3Results.class, RestExceptionMessage.class );
     }
     catch ( IOException ex )
     {

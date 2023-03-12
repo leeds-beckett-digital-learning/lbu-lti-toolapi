@@ -24,6 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.interfaces.RSAPublicKey;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -52,10 +53,15 @@ import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolSetMapping;
-import uk.ac.leedsbeckett.ltitoolset.backchannel.HttpClient;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelBackgroundWorker;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelKey;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelOwner;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiBackchannel;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardConfiguration;
-import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardPlatform;
-import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardRestTokenStore;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannel;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolJwksServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLaunchServlet;
@@ -134,9 +140,9 @@ public class ToolCoordinator implements ServletContainerInitializer
   // Blackboard specific
   private boolean usingBlackboardRest = false;
   private BlackboardConfiguration blackboardconfig;
-  private BlackboardRestTokenStore blackboardresttokenstore;
-  private HashMap<String,BlackboardPlatform> blackboardplatformmap;
-  
+
+  private final BackchannelBackgroundWorker bcbworker = new BackchannelBackgroundWorker();
+  private final HashMap<BackchannelKey,Backchannel> backchannelmap = new HashMap<>();
   
   /**
    * A service record in the META-INF resource of the API jar file fill ensure
@@ -178,12 +184,6 @@ public class ToolCoordinator implements ServletContainerInitializer
     initLtiConfiguration( ctx );
     initToolConfiguration( ctx );
     
-    if ( !StringUtils.isBlank( toolconfig.getBackchannelProxy() ) )
-    {
-      logger.log(Level.INFO, "Setting proxy to {0}", toolconfig.getBackchannelProxy());
-      HttpClient.setHttpsProxyUrl( toolconfig.getBackchannelProxy() );
-    }
-
     initLtiStateStore();
     initServiceKeyPairs();
     
@@ -410,40 +410,79 @@ public class ToolCoordinator implements ServletContainerInitializer
     {
       blackboardconfig = new BlackboardConfiguration();
       blackboardconfig.load( configpath );
-      blackboardresttokenstore = new BlackboardRestTokenStore( blackboardconfig );
-      //blackboardresttokenstore.start();
-      blackboardplatformmap = new HashMap<>();
     }
   }  
   
-  public BlackboardPlatform getBlackboardPlatform( String platform )
-  {
-    if ( blackboardplatformmap == null )
+  public Backchannel getBackchannel( BackchannelOwner owner, BackchannelKey key, ToolSetLtiState state )
+  {    
+    synchronized ( backchannelmap )
     {
-      logger.log( Level.WARNING, "A Blackboard platform was requested but no tools declared a need for one." );
-      return null;
-    }
-    synchronized ( blackboardplatformmap )
-    {
-      BlackboardPlatform bp = blackboardplatformmap.get( platform );
-      if ( bp == null )
+      Backchannel b = backchannelmap.get( key );
+      if ( b != null )
       {
-        bp = new BlackboardPlatform( platform, blackboardresttokenstore );
-        blackboardplatformmap.put( platform, bp );
+        b.addOwner( owner );
+        return b;
       }
-      return bp;
+      
+      if ( key instanceof BlackboardBackchannelKey )
+      {
+        if ( !usingBlackboardRest )
+        {
+          logger.log( Level.WARNING, "A Blackboard platform was requested but no tools declared a need for one." );
+          return null;
+        }
+        b = new BlackboardBackchannel( (BlackboardBackchannelKey)key, blackboardconfig.getId(), blackboardconfig.getSecret() );
+      }
+      
+      if ( key instanceof LtiBackchannelKey )
+      {
+        b = new LtiBackchannel( 
+                key, 
+                lticonfig.getClientLtiConfiguration( state.getClientKey() ).getAuthTokenUrl(),
+                state.getClientId(),
+                this.kid,
+                this.privateKey );
+      }
+
+      if ( b != null )
+      {
+        backchannelmap.put( key, b );
+        bcbworker.registerBackchannel( b );  // never unregistered...  ToDo
+        if ( !StringUtils.isBlank( toolconfig.getBackchannelProxy() ) )
+        {
+          logger.log(Level.INFO, "Setting proxy to {0}", toolconfig.getBackchannelProxy());
+          b.setHttpsProxyUrl( toolconfig.getBackchannelProxy() );
+        }
+        b.addOwner( owner );
+      }      
+ 
+      return b;
     }
   }
   
-  public String getBlackboardPlatformToken( String platform )
+  public void releaseBackchannels( BackchannelOwner owner )
   {
-    if ( blackboardresttokenstore == null )
+    synchronized ( backchannelmap )
     {
-      logger.log( Level.WARNING, "A Blackboard platform token was requested but no tools declared a need for one." );
-      return null;
-    }
-    return blackboardresttokenstore.getPlatformToken( platform );
+      Backchannel b;
+      ArrayList<BackchannelKey> removalList = new ArrayList<>();
+      for ( BackchannelKey key : backchannelmap.keySet() )
+      {
+        b = backchannelmap.get( key );
+        if ( b.isOwner( owner ) )
+          b.removeOwner( owner );
+        if ( !b.hasOwners() )
+          removalList.add( key );
+      }
+      for ( BackchannelKey key : removalList )
+      {
+        b = backchannelmap.get( key );
+        backchannelmap.remove( key );
+        bcbworker.unregisterBackchannel( b );
+      }
+    }    
   }
+  
   
   /**
    * Get the LTI configuration.

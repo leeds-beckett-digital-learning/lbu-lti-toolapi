@@ -82,7 +82,7 @@ public class JsonResult
       else
         result = objectmapper.readValue( rawValue, failClass );
     }
-    catch ( JsonProcessingException ex )
+    catch ( Exception ex )
     {
       logger.log( Level.SEVERE, null, ex );
       logger.log( Level.SEVERE, rawValue );

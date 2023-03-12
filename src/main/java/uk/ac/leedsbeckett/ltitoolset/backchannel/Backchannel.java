@@ -17,10 +17,10 @@ package uk.ac.leedsbeckett.ltitoolset.backchannel;
 
 
 import java.io.IOException;
-import java.io.StringWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -29,10 +29,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpHost;
 import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
-import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
-import org.apache.http.client.AuthCache;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -41,14 +39,15 @@ import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.routing.HttpRoutePlanner;
 import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.BasicAuthCache;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
-import org.apache.http.impl.conn.DefaultRoutePlanner;
 import org.apache.http.message.BasicNameValuePair;
+import uk.ac.leedsbeckett.lti.services.nrps.NrpsError;
+import uk.ac.leedsbeckett.lti.services.nrps.NrpsMembershipContainer;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.OAuth2Error;
 
 
 
@@ -58,49 +57,67 @@ import org.apache.http.message.BasicNameValuePair;
  *
  * @author maber01
  */
-public class HttpClient
+public abstract class Backchannel
 {
-  static final Logger logger = Logger.getLogger( HttpClient.class.getName() );
+  static final Logger logger = Logger.getLogger(Backchannel.class.getName() );
 
-  static String httpsproxyurl = null;
-  static HttpRoutePlanner routePlanner = null;
-          
-  public static void setHttpsProxyUrl( String url )
+  protected final HashSet<BackchannelOwner> owners = new HashSet<>();
+  
+  protected String httpsproxyurl = null;
+  protected HttpRoutePlanner routePlanner = null;
+
+  protected final ArrayList<OAuth2Token> tokenList = new ArrayList<>();
+  
+  
+  public void addOwner( BackchannelOwner owner )
+  {
+    owners.add( owner );
+  }
+  
+  public void removeOwner( BackchannelOwner owner )
+  {
+    owners.remove( owner );
+  }
+  
+  public boolean isOwner( BackchannelOwner owner )
+  {
+    return owners.contains( owner );
+  }
+  
+  public boolean hasOwners()
+  {
+    return !owners.isEmpty();
+  }
+  
+  public void setHttpsProxyUrl( String url )
   {
     httpsproxyurl = url;
     if ( StringUtils.isBlank( httpsproxyurl ) )
-    {
-      logger.log(Level.INFO, "No route planner - no proxy." );
       routePlanner = null;
-      return;
-    }
-    
-    try
-    {
-      logger.log(Level.INFO, "Setting up a route planner." );
-      HttpHost host = HttpHost.create( url );
-      logger.log(Level.INFO, "Scheme {0}", host.getSchemeName() );
-      logger.log(Level.INFO, "Host   {0}", host.getHostName() );
-      logger.log(Level.INFO, "Port   {0}", host.getPort() );
-      routePlanner = new DefaultProxyRoutePlanner( host );
-    }
-    catch ( Throwable th )
-    {
-      logger.log( Level.SEVERE, "Unable to set up route planner.", th );
-    }
+    else
+      try
+      {
+        HttpHost host = HttpHost.create( url );
+        routePlanner = new DefaultProxyRoutePlanner( host );
+      }
+      catch ( Throwable th )
+      {
+        logger.log( Level.SEVERE, "Unable to set up route planner.", th );
+      }
   }
   
-  public static String postAuthTokenRequest( String url, String assertion ) throws IOException
+  public JsonResult postAuthTokenRequest( 
+          String url, 
+          String assertion ) throws IOException
   {
     final HttpPost httpPost = new HttpPost( url );
-    final List<NameValuePair> params = new ArrayList<NameValuePair>();
+    final List<NameValuePair> params = new ArrayList<>();
     params.add(new BasicNameValuePair("grant_type", "client_credentials" ));
     params.add(new BasicNameValuePair("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" ));
     params.add(new BasicNameValuePair("client_assertion", assertion ));
     params.add(new BasicNameValuePair("scope", "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly" ));
     
-    httpPost.setEntity(new UrlEncodedFormEntity(params));
-
+    httpPost.setEntity( new UrlEncodedFormEntity( params ) );
     logger.log( Level.INFO, "Executing POST on {0}", url );
     HttpClientBuilder clientBuilder = HttpClients.custom();
     if ( routePlanner != null )
@@ -109,19 +126,19 @@ public class HttpClient
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpPost))
     {
-        final int statusCode = response.getStatusLine().getStatusCode();
-        logger.log( Level.INFO, "Rxed status code {0}", statusCode );
-        logger.log( Level.INFO, "Rxed reason      {0}", response.getStatusLine().getReasonPhrase() );
-        logger.log( Level.INFO, "Content type = {0}", response.getEntity().getContentType() );
-        String value = IOUtils.toString( response.getEntity().getContent(), "ASCII" );
-        logger.log( Level.INFO, "Server returned {0}", value );
-        if ( statusCode != HttpStatus.SC_OK )
-          return null;
-        return value;
+      return new JsonResult( 
+              response.getStatusLine(), 
+              response.getEntity().getContentType().getValue(), 
+              IOUtils.toString( response.getEntity().getContent(), "ASCII" ),
+              OAuth2Token.class,
+              OAuth2Error.class );
     }
   }
 
-  public static String postBlackboardRestTokenRequest( String url, String uname, String secret ) throws IOException
+  public JsonResult postBlackboardRestTokenRequest( 
+          String url, 
+          String uname, 
+          String secret ) throws IOException
   {
     HttpHost host = HttpHost.create( url );
     
@@ -148,19 +165,16 @@ public class HttpClient
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpPost,context))
     {
-      final int statusCode = response.getStatusLine().getStatusCode();
-      logger.log( Level.INFO, "Rxed status code {0}", statusCode );
-      logger.log( Level.INFO, "Rxed reason      {0}", response.getStatusLine().getReasonPhrase() );
-      logger.log( Level.INFO, "Content type = {0}", response.getEntity().getContentType() );
-      String value = IOUtils.toString( response.getEntity().getContent(), "ASCII" );
-      logger.log( Level.INFO, "Server returned {0}", value );
-      if ( statusCode != HttpStatus.SC_OK )
-        return null;
-      return value;
+      return new JsonResult( 
+              response.getStatusLine(), 
+              response.getEntity().getContentType().getValue(), 
+              IOUtils.toString( response.getEntity().getContent(), "ASCII" ),
+              OAuth2Token.class,
+              OAuth2Error.class );
     }
   }
   
-  public static JsonResult getBlackboardRest( 
+  public JsonResult getBlackboardRest( 
           String url, 
           String token, 
           List<NameValuePair> params,
@@ -202,7 +216,7 @@ public class HttpClient
     }
   }
   
-  public static String getNamesRoles( String url, String token ) throws IOException
+  public JsonResult getNamesRoles( String url, String token ) throws IOException
   {
     String bearer = "Bearer " + token;
     logger.log( Level.INFO, "Authorization header set to {0}", bearer );
@@ -217,15 +231,12 @@ public class HttpClient
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpGet))
     {
-        final int statusCode = response.getStatusLine().getStatusCode();
-        logger.log( Level.INFO, "Rxed status code {0}", statusCode );
-        logger.log( Level.INFO, "Rxed reason      {0}", response.getStatusLine().getReasonPhrase() );
-        logger.log( Level.INFO, "Content type = {0}", response.getEntity().getContentType() );
-        String value = IOUtils.toString( response.getEntity().getContent(), "ASCII" );
-        logger.log( Level.INFO, "Server returned {0}", value );
-        if ( statusCode != HttpStatus.SC_OK )
-          return null;
-        return value;
+      return new JsonResult( 
+              response.getStatusLine(), 
+              response.getEntity().getContentType().getValue(), 
+              IOUtils.toString( response.getEntity().getContent(), "ASCII" ),
+              NrpsMembershipContainer.class,
+              NrpsError.class );
     }
     catch ( IOException iex )
     {
