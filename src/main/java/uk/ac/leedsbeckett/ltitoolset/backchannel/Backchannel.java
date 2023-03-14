@@ -24,10 +24,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.Header;
+import org.apache.http.HeaderElement;
 import org.apache.http.HttpHost;
-import org.apache.http.HttpStatus;
 import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -45,8 +45,8 @@ import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 import org.apache.http.message.BasicNameValuePair;
-import uk.ac.leedsbeckett.lti.services.nrps.NrpsError;
-import uk.ac.leedsbeckett.lti.services.nrps.NrpsMembershipContainer;
+import uk.ac.leedsbeckett.lti.services.data.ServiceStatus;
+import uk.ac.leedsbeckett.lti.services.nrps.data.NrpsMembershipContainer;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.OAuth2Error;
 
 
@@ -127,9 +127,7 @@ public abstract class Backchannel
             .execute(httpPost))
     {
       return new JsonResult( 
-              response.getStatusLine(), 
-              response.getEntity().getContentType().getValue(), 
-              IOUtils.toString( response.getEntity().getContent(), "ASCII" ),
+              response,
               OAuth2Token.class,
               OAuth2Error.class );
     }
@@ -166,9 +164,7 @@ public abstract class Backchannel
             .execute(httpPost,context))
     {
       return new JsonResult( 
-              response.getStatusLine(), 
-              response.getEntity().getContentType().getValue(), 
-              IOUtils.toString( response.getEntity().getContent(), "ASCII" ),
+              response,
               OAuth2Token.class,
               OAuth2Error.class );
     }
@@ -208,9 +204,7 @@ public abstract class Backchannel
             .execute(httpGet))
     {
       return new JsonResult( 
-              response.getStatusLine(), 
-              response.getEntity().getContentType().getValue(), 
-              IOUtils.toString( response.getEntity().getContent(), "ASCII" ),
+              response,
               successClass,
               failClass );
     }
@@ -231,12 +225,23 @@ public abstract class Backchannel
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpGet))
     {
+      Header[] headers = response.getAllHeaders();
+      logger.log(Level.FINE, "HTTP Response Headers:" );
+      for ( Header h : headers )
+      {
+        logger.log(Level.FINE, "{0} = {1}", new Object[ ]{h.getName(), h.getValue()});
+        for ( HeaderElement he : h.getElements() )
+        {
+          logger.log(Level.FINE, "Header element {0} = {1}", new Object[ ]{he.getName(), he.getValue()});
+          for ( NameValuePair nvp : he.getParameters() )
+            logger.log(Level.FINE, "       Parameter {0} = {1}", new Object[ ]{nvp.getName(), nvp.getValue()});
+        }
+      }
+      logger.log(Level.FINE, "End of headers." );
       return new JsonResult( 
-              response.getStatusLine(), 
-              response.getEntity().getContentType().getValue(), 
-              IOUtils.toString( response.getEntity().getContent(), "ASCII" ),
+              response,
               NrpsMembershipContainer.class,
-              NrpsError.class );
+              ServiceStatus.class );
     }
     catch ( IOException iex )
     {

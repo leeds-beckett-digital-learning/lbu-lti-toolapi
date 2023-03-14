@@ -19,10 +19,17 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.commons.io.IOUtils;
+import org.apache.http.Header;
+import org.apache.http.HeaderElement;
+import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
+import org.apache.http.NameValuePair;
 import org.apache.http.StatusLine;
+import uk.ac.leedsbeckett.lti.services.data.ServiceStatus;
 
 /**
  *
@@ -41,60 +48,56 @@ public class JsonResult
   }
   
   
-  boolean complete = false;
   boolean successful = false;
   String errorMessage;
   String contentType;
+  String contentCharset;
   String rawValue;
   Object result;
 
   public JsonResult( 
-          StatusLine statusLine, 
-          String contentType, 
-          String rawValue,
+          HttpResponse response,
           Class<?> successClass,
-          Class<?> failClass )
+          Class<?> failClass ) throws IOException
   {
-    if ( statusLine != null)
+    StatusLine statusLine = response.getStatusLine();
+    Header contenttypeheader = response.getEntity().getContentType();
+    this.contentType = contenttypeheader.getValue();
+    this.contentCharset = "ASCII";
+    HeaderElement[] contenttypeelement = contenttypeheader.getElements();
+    if ( contenttypeelement != null && contenttypeelement.length > 0 )
     {
-      switch ( statusLine.getStatusCode() )
-      {
-        case HttpStatus.SC_OK:
-          complete = true;
-          successful = true;
-          break;
-        case HttpStatus.SC_BAD_REQUEST:
-          complete = true;
-          break;
-        default:
-          errorMessage = statusLine.getReasonPhrase();
-          break;
-      }
+      this.contentType = contenttypeelement[0].getName();
+      NameValuePair charset = contenttypeelement[0].getParameterByName( "charset" );
+      if ( charset != null )
+        this.contentCharset = charset.getValue();
     }
-    this.contentType = contentType;
-    this.rawValue = rawValue;
-    if ( !complete )
-      return;
-    try
-    {
-      if ( successful )
-        result = objectmapper.readValue( rawValue, successClass );
-      else
-        result = objectmapper.readValue( rawValue, failClass );
-    }
-    catch ( Exception ex )
-    {
-      logger.log( Level.SEVERE, null, ex );
-      logger.log( Level.SEVERE, rawValue );
-      complete = false;
-    }
-  }
+    
+    this.rawValue = IOUtils.toString( response.getEntity().getContent(), this.contentCharset );
 
-  
-  
-  public boolean isComplete()
-  {
-    return complete;
+    // Try interpreting raw value as JSON regardless of content type.
+    Class<?>[] expectedClasses = new Class<?>[3];
+    expectedClasses[0] = successClass;
+    expectedClasses[1] = failClass;
+    expectedClasses[2] = ServiceStatus.class;
+    for ( Class<?> c : expectedClasses )
+    {
+      if ( c == null ) continue;
+      try
+      {
+        result = objectmapper.readValue( rawValue, c );
+        break;  // don't try other classes if this didn't throw exception
+      }
+      catch ( Exception ex )
+      {
+        logger.log( Level.SEVERE, null, ex );
+        logger.log( Level.SEVERE, rawValue );
+      }      
+    }
+    
+    successful = statusLine != null && 
+                 statusLine.getStatusCode() == HttpStatus.SC_OK &&
+                 result != null; 
   }
 
   public boolean isSuccessful()

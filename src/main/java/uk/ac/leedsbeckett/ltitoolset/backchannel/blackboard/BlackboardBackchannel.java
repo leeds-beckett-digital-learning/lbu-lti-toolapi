@@ -90,8 +90,8 @@ public class BlackboardBackchannel extends Backchannel
     String target = "https://" + platform + "/learn/api/public/v3/courses";
     ArrayList<NameValuePair> params = new ArrayList<>();
     
-    if ( !StringUtils.isBlank( courseId ) ) params.add( new BasicNameValuePair( "XXXcourseId", name ) );
-    if ( !StringUtils.isBlank( name     ) ) params.add( new BasicNameValuePair( "XXXname", name ) );
+    if ( !StringUtils.isBlank( courseId ) ) params.add( new BasicNameValuePair( "courseId", name ) );
+    if ( !StringUtils.isBlank( name     ) ) params.add( new BasicNameValuePair( "name", name ) );
     
     try
     {
