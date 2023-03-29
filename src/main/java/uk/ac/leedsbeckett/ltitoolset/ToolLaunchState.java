@@ -39,6 +39,7 @@ public class ToolLaunchState implements Serializable
   private String personName;
   private String courseId;
   private String courseTitle;
+  private String relativeWebSocketUri;
 
   public ResourceKey getResourceKey()
   {
@@ -89,5 +90,14 @@ public class ToolLaunchState implements Serializable
   {
     this.courseTitle = courseTitle;
   }
-  
+
+  public String getRelativeWebSocketUri()
+  {
+    return relativeWebSocketUri;
+  }
+
+  public void setRelativeWebSocketUri( String relativeWebSocketUri )
+  {
+    this.relativeWebSocketUri = relativeWebSocketUri;
+  }
 }

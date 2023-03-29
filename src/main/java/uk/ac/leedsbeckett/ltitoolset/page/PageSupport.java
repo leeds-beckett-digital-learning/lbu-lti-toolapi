@@ -16,10 +16,12 @@
 
 package uk.ac.leedsbeckett.ltitoolset.page;
 
-import java.lang.annotation.Annotation;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import javax.websocket.server.ServerEndpoint;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
 
 /**
@@ -29,11 +31,14 @@ import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
  */
 public abstract class PageSupport
 {
+  static final Logger logger = Logger.getLogger( PageSupport.class.getName() );
+  
   protected HttpServletRequest request;
   protected String importantmessage="";
   
   protected ToolCoordinator toolCoordinator;
-
+  
+  
   /**
    * Get the HTTP request associated with the JSP page that uses this object.
    * @return The HTTPServletRequest that was set for this object.
@@ -64,30 +69,5 @@ public abstract class PageSupport
   public String getImportantMessage()
   {
     return importantmessage;
-  }
-  
-  /**
-   * If there is a websocket which will be used by the page, this method
-   * will calculate the URI of the endpoint based on the web application
-   * context and the Annotation of the endpoint.
-   * 
-   * @param annotation The annotation of an Endpoint.
-   * @return The full URI of the websocket.
-   */
-  protected String computeWebSocketUri( Annotation annotation )
-  {
-    if ( annotation != null && annotation instanceof ServerEndpoint )
-    {
-      ServerEndpoint se = (ServerEndpoint)annotation;
-      StringBuilder sb = new StringBuilder();
-      sb.append( (request.isSecure()?"wss://":"ws://") );
-      sb.append( request.getServerName() );
-      sb.append( ":" );
-      sb.append( request.getServerPort() );
-      sb.append( request.getServletContext().getContextPath() );
-      sb.append( se.value() );
-      return sb.toString();
-    }
-    return null;
-  }
+  }  
 }

@@ -15,8 +15,11 @@
  */
 package uk.ac.leedsbeckett.ltitoolset;
 
+import java.lang.annotation.Annotation;
 import javax.servlet.ServletContext;
+import javax.websocket.server.ServerEndpoint;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
+import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
  * The interface that tools must implement.
@@ -55,8 +58,20 @@ public abstract class Tool
     toolstate.setCourseId( lticlaims.getLtiContext().getId() );
     toolstate.setCourseTitle( lticlaims.getLtiContext().getLabel() );
     ResourceKey rk = new ResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
-    toolstate.setResourceKey( rk );    
+    toolstate.setResourceKey( rk );
+    Annotation a = getEndpointClass().getAnnotation( ServerEndpoint.class );
+    if ( a != null && a instanceof ServerEndpoint )
+    {
+      ServerEndpoint se = (ServerEndpoint)a;
+      StringBuilder sb = new StringBuilder();
+      sb.append( se.value() );
+      sb.append( "?state=" );
+      sb.append( state.getId() );
+      toolstate.setRelativeWebSocketUri( sb.toString() );
+    }
   }
+  
+  public abstract Class<? extends ToolEndpoint> getEndpointClass();
   
   /**
    * Does the tool need to use Blackboard REST API? If one or more tools in the

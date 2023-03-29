@@ -80,9 +80,9 @@ public class BlackboardBackchannel extends Backchannel
   
   
   
-  public JsonResult getV3Courses( String courseId, String name )
+  public JsonResult getV3Courses( String courseId, boolean org )
   {
-    if ( StringUtils.isBlank( courseId ) && StringUtils.isBlank( name ) )
+    if ( StringUtils.isBlank( courseId ) )
       return null;
     
     OAuth2Token t = getAuthToken();
@@ -90,8 +90,8 @@ public class BlackboardBackchannel extends Backchannel
     String target = "https://" + platform + "/learn/api/public/v3/courses";
     ArrayList<NameValuePair> params = new ArrayList<>();
     
-    if ( !StringUtils.isBlank( courseId ) ) params.add( new BasicNameValuePair( "courseId", name ) );
-    if ( !StringUtils.isBlank( name     ) ) params.add( new BasicNameValuePair( "name", name ) );
+    if ( !StringUtils.isBlank( courseId ) ) params.add( new BasicNameValuePair( "courseId", courseId ) );
+    params.add( new BasicNameValuePair( "organization", Boolean.toString( org ) ) );
     
     try
     {
