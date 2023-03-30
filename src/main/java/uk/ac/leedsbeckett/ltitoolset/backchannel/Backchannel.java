@@ -19,6 +19,7 @@ package uk.ac.leedsbeckett.ltitoolset.backchannel;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -35,9 +36,11 @@ import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.routing.HttpRoutePlanner;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -209,6 +212,49 @@ public abstract class Backchannel
               failClass );
     }
   }
+
+  public JsonResult putBlackboardRest( 
+          String url, 
+          String token, 
+          String data,
+          Class<?> successClass,
+          Class<?> failClass ) throws IOException
+  {
+    URI target;
+    URIBuilder urib;
+    try
+    {
+      urib = new URIBuilder( url );
+      target = urib.build();
+    }
+    catch ( URISyntaxException ex )
+    {
+      throw new IOException( "Unable to build uri", ex );
+    }
+    
+
+    final HttpPut httpPut = new HttpPut( target );
+    httpPut.addHeader( "Authorization", "Bearer " + token );
+    httpPut.setHeader("Accept", "application/json");
+    httpPut.setHeader("Content-type", "application/json; charset=utf-8");
+    StringEntity stringEntity = new StringEntity( data, StandardCharsets.UTF_8 );
+    httpPut.setEntity( stringEntity );
+    
+    logger.log( Level.INFO, "Executing PUT on {0}", target );
+    HttpClientBuilder clientBuilder = HttpClients.custom();
+    if ( routePlanner != null )
+      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute( httpPut ))
+    {
+      return new JsonResult( 
+              response,
+              successClass,
+              failClass );
+    }
+  }
+
   
   public JsonResult getNamesRoles( String url, String token ) throws IOException
   {

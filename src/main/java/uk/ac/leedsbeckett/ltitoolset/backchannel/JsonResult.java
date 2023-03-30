@@ -96,7 +96,7 @@ public class JsonResult
     }
     
     successful = statusLine != null && 
-                 statusLine.getStatusCode() == HttpStatus.SC_OK &&
+                 (statusLine.getStatusCode() / 100) == (HttpStatus.SC_OK / 100) &&
                  result != null; 
   }
 

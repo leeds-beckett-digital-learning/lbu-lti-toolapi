@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.logging.Level;
@@ -25,6 +26,9 @@ import org.apache.http.message.BasicNameValuePair;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.JsonResult;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.Availability;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1Input;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCoursesV3Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.RestExceptionMessage;
 
@@ -96,6 +100,29 @@ public class BlackboardBackchannel extends Backchannel
     try
     {
       return getBlackboardRest( target, token, params, GetCoursesV3Results.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+  
+  public JsonResult putV1CourseMemberships( String courseId, String userId, CourseMembershipV1Input cmi )
+  {
+    if ( StringUtils.isBlank( courseId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + 
+            "/learn/api/public/v1/courses/externalId:" + courseId + "/users/uuid:" + userId;
+
+    ObjectMapper mapper = new ObjectMapper();
+    try
+    {
+      String json = mapper.writeValueAsString( cmi );
+      logger.log( Level.INFO, json );
+      return putBlackboardRest( target, token, json, CourseMembershipV1.class, RestExceptionMessage.class );
     }
     catch ( IOException ex )
     {
