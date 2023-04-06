@@ -44,6 +44,7 @@ public class ToolJwksServlet extends HttpServlet
     ToolCoordinator toolCoord = ToolCoordinator.get( req.getServletContext() );
     if ( toolCoord == null ) { resp.sendError( 500, "Cannot find tool manager." ); return; }
 
+    logger.log( Level.FINE, "Sending {0}", toolCoord.getServiceJwks() );
     resp.getWriter().println( toolCoord.getServiceJwks() );
   }
   

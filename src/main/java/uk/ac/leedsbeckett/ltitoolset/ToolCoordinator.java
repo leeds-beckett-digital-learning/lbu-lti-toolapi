@@ -21,6 +21,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecordPredicate;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.file.Paths;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -42,6 +43,8 @@ import javax.cache.expiry.CreatedExpiryPolicy;
 import javax.cache.expiry.Duration;
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
+import javax.servlet.ServletContextEvent;
+import javax.servlet.ServletContextListener;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRegistration;
 import javax.servlet.annotation.HandlesTypes;
@@ -57,12 +60,15 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelBackgroundWorker;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelOwner;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.JwksBackchannel;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.JwksBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
+import uk.ac.leedsbeckett.ltitoolset.jwks.JwksStore;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolJwksServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLaunchServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLoginServlet;
@@ -80,7 +86,7 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecord;
  * @author maber01
  */
 @HandlesTypes( {ToolMapping.class, ToolSetMapping.class} )
-public class ToolCoordinator implements ServletContainerInitializer
+public class ToolCoordinator implements ServletContainerInitializer, BackchannelOwner
 {
   static final Logger logger = Logger.getLogger( ToolCoordinator.class.getName() );
   static final String KEY = ToolCoordinator.class.getCanonicalName();
@@ -129,7 +135,7 @@ public class ToolCoordinator implements ServletContainerInitializer
   // Service call signing stuff:
   private String kid;
   private RSAPublicKey publicKey;
-  private String jwks;
+  private String myJwks;
   private PrivateKey privateKey;
   
   // WebSocket Endpoint related stuff
@@ -143,6 +149,8 @@ public class ToolCoordinator implements ServletContainerInitializer
 
   private final BackchannelBackgroundWorker bcbworker = new BackchannelBackgroundWorker();
   private final HashMap<BackchannelKey,Backchannel> backchannelmap = new HashMap<>();
+
+  private JwksStore jwksStore;
   
   /**
    * A service record in the META-INF resource of the API jar file fill ensure
@@ -180,15 +188,20 @@ public class ToolCoordinator implements ServletContainerInitializer
       logger.log( Level.SEVERE, "No tool set mapping was found so cannot set up LTI login and launch servlets" );
     else
       initServlets( ctx );
-    
-    initLtiConfiguration( ctx );
+
+    // This has to be early because the web proxy setting is needed in 
+    // other initialization stuff.
     initToolConfiguration( ctx );
     
+    initJkwsStore( ctx );
+    initLtiConfiguration( ctx );
     initLtiStateStore();
     initServiceKeyPairs();
     
     if ( usingBlackboardRest )
       initBlackboardRest( ctx );
+    
+    ctx.addListener( new InnerServletContextListener() );
   }
 
   /**
@@ -370,14 +383,31 @@ public class ToolCoordinator implements ServletContainerInitializer
    * 
    * @param context 
    */
+  private void initJkwsStore( ServletContext context )
+  {
+    // Don't bother releasing it because this object lasts forever (almost)
+    JwksBackchannel jwksbc = (JwksBackchannel)getBackchannel( this, JwksBackchannelKey.getInstance(), null );
+    jwksStore = new JwksStore( Paths.get( context.getRealPath( "/WEB-INF/jwks/" ) ), jwksbc );
+  }
+  
+  /**
+   * Load the LTI configuration file from a standard location.
+   * 
+   * @param context 
+   */
   private void initLtiConfiguration( ServletContext context )
   {
     String configpath = context.getRealPath( "/WEB-INF/config.json" );
     logger.log( Level.INFO, "Loading LTI configuration from: {0}", configpath );
+    
     if ( !StringUtils.isEmpty( configpath ) )
     {
       lticonfig.load( configpath );
       logger.log( Level.INFO, "Raw configuration: {0}", lticonfig.getRawConfiguration() );
+      for ( String url : lticonfig.getAllJksUrls() )
+          jwksStore.addUri( url );
+      jwksStore.startRefreshing();
+      lticonfig.setJwksSigningKeyResolver( jwksStore );
     }
   }  
   
@@ -443,11 +473,16 @@ public class ToolCoordinator implements ServletContainerInitializer
                 this.kid,
                 this.privateKey );
       }
+      
+      if ( key instanceof JwksBackchannelKey )
+      {
+        b = new JwksBackchannel();
+      }
 
       if ( b != null )
       {
         backchannelmap.put( key, b );
-        bcbworker.registerBackchannel( b );  // never unregistered...  ToDo
+        bcbworker.registerBackchannel( b );
         if ( !StringUtils.isBlank( toolconfig.getBackchannelProxy() ) )
         {
           logger.log(Level.INFO, "Setting proxy to {0}", toolconfig.getBackchannelProxy());
@@ -520,8 +555,8 @@ public class ToolCoordinator implements ServletContainerInitializer
       ObjectMapper mapper = new ObjectMapper();
       try      
       {
-        jwks = "{\"keys\":[" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString( values ) + "]}";
-        logger.log( Level.FINE, jwks );
+        myJwks = "{\"keys\":[" + mapper.writerWithDefaultPrettyPrinter().writeValueAsString( values ) + "]}";
+        logger.log(Level.FINE, myJwks );
       }
       catch ( JsonProcessingException ex )
       {
@@ -532,7 +567,7 @@ public class ToolCoordinator implements ServletContainerInitializer
   
   public String getServiceJwks()
   {
-    if ( jwks != null ) return jwks;
+    if ( myJwks != null ) return myJwks;
     return "{\"keys\":[]}";
   }
   
@@ -700,6 +735,21 @@ public class ToolCoordinator implements ServletContainerInitializer
     public boolean test( Session t )
     {
       return t.isOpen();
+    }
+  }
+  
+  public class InnerServletContextListener implements ServletContextListener
+  {
+    @Override
+    public void contextInitialized( ServletContextEvent sce )
+    {
+    }
+
+    @Override
+    public void contextDestroyed( ServletContextEvent sce )
+    {
+      logger.fine( "Serlvet context is being destroyed." );
+      jwksStore.stopRefreshing();
     }
   }
 }

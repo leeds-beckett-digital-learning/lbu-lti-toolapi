@@ -110,26 +110,32 @@ public abstract class Store<K,T extends Entry<K>>
     
     if ( r != null )
     {
-      logger.log( Level.FINE, "From cache - PeerGroupResource {0}", key.toString() );
+      logger.log( Level.FINE, "Found in cache - {0}", key.toString() );
       return r;      
     }
     
-    logger.log( Level.FINE, "Not in cache - PeerGroupResource {0}", key.toString() );
+    logger.log( Level.FINE, "Not in cache - {0}", key.toString() );
     try
     {
       r = load( key );
-      if ( r == null )
+      if ( r != null )
       {
+        logger.log( Level.FINE, "Loaded so caching - {0}", key.toString() );
+        cache.put( key, r );
+        if ( !cache.containsKey( key ) )
+          logger.log( Level.SEVERE, "But key is still not in the cache {0}", key.toString() );
+        return r;
+      }
+      
+      if ( create )
+      {
+        logger.log( Level.FINE, "Created and saved - {0}", key.toString() );
         r = create( key );
         // an entirely new resource so set it up
         r.initialize();
         save( key, r );
-    }
-      else
-      {
-        cache.put( key, r );
-        if ( !cache.containsKey(key) )
-          logger.log( Level.SEVERE, "Put resource in cache but key is not present {0}", key.toString() );
+        // save also caches the record so we are done now
+        return r;
       }
     }
     catch (IOException ex)
@@ -138,7 +144,7 @@ public abstract class Store<K,T extends Entry<K>>
       return null;
     }  
     
-    return r;
+    return null;
   }
     
   /**
@@ -166,7 +172,7 @@ public abstract class Store<K,T extends Entry<K>>
     Path filepath = getPath( key );
     if ( Files.exists( filepath ) )
     {
-      logger.log( Level.FINE, "Loading PeerGroupResource {0}", filepath );
+      logger.log( Level.FINE, "Loading data {0}", filepath );
       return objectmapper.readValue( filepath.toFile(), getEntryClass() );
     }
     return null;
@@ -183,7 +189,7 @@ public abstract class Store<K,T extends Entry<K>>
   {
     Path filepath = getPath( key );
     Files.createDirectories( filepath.getParent() );
-    logger.log( Level.FINE, "Saving PeerGroupResource {0}", filepath );
+    logger.log( Level.FINE, "Saving data to {0}", filepath );
     objectmapper.writeValue( filepath.toFile(), r );
     cache.put( key, r );
     if ( !cache.containsKey(key) )

@@ -43,6 +43,7 @@ import org.apache.http.conn.routing.HttpRoutePlanner;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicScheme;
 import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
@@ -108,6 +109,39 @@ public abstract class Backchannel
         logger.log( Level.SEVERE, "Unable to set up route planner.", th );
       }
   }
+
+  public String getPublicText( String url,  List<NameValuePair> params )
+          throws IOException
+  {
+    URI target;
+    URIBuilder urib;
+    try
+    {
+      urib = new URIBuilder( url );
+      if ( params != null )
+        urib.addParameters( params );
+      target = urib.build();
+    }
+    catch ( URISyntaxException ex )
+    {
+      throw new IOException( "Unable to build uri", ex );
+    }
+    
+
+    final HttpGet httpGet = new HttpGet( target );
+    
+    logger.log( Level.INFO, "Executing GET on {0}", target );
+    HttpClientBuilder clientBuilder = HttpClients.custom();
+    if ( routePlanner != null )
+      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute(httpGet))
+    {
+      return new BasicResponseHandler().handleResponse(response);
+    }
+  }
+
   
   public JsonResult postAuthTokenRequest( 
           String url, 
