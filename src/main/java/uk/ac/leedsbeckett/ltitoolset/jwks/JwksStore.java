@@ -73,7 +73,7 @@ public class JwksStore extends Store<String,JwksEntry> implements Runnable, Jwks
   public void startRefreshing()
   {
     executorService = Executors.newSingleThreadScheduledExecutor();
-    executorService.scheduleAtFixedRate( this, 1, 1, TimeUnit.MINUTES );
+    executorService.scheduleAtFixedRate( this, 1, 60, TimeUnit.MINUTES );
   }
   
   public void stopRefreshing()
