@@ -31,6 +31,7 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershi
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1Input;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCoursesV3Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.RestExceptionMessage;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.UserV1;
 
 /**
  * One instance in the web application for each blackboard learn platform
@@ -82,7 +83,25 @@ public class BlackboardBackchannel extends Backchannel
   }
  
   
-  
+  public JsonResult getV1Users( String userId )
+  {
+    if ( StringUtils.isBlank( userId ) )
+      return null;
+
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v1/users/uuid:" + userId;
+    ArrayList<NameValuePair> params = new ArrayList<>();
+
+    try
+    {
+      return getBlackboardRest( target, token, params, UserV1.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
   
   public JsonResult getV3Courses( String courseId, boolean org )
   {
