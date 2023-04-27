@@ -15,12 +15,15 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 
 /**
  *
  * @author maber01
  */
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class RestExceptionMessage implements Serializable
 {
   private final String status;
@@ -29,7 +32,12 @@ public class RestExceptionMessage implements Serializable
   private final String developerMessage;
   private final String extraInfo;
 
-  public RestExceptionMessage( String status, String code, String message, String developerMessage, String extraInfo )
+  public RestExceptionMessage( 
+          @JsonProperty( "status" )           String status, 
+          @JsonProperty( "code" )             String code, 
+          @JsonProperty( "message" )          String message, 
+          @JsonProperty( "developerMessage" ) String developerMessage, 
+          @JsonProperty( "extraInfo" )        String extraInfo )
   {
     this.status = status;
     this.code = code;

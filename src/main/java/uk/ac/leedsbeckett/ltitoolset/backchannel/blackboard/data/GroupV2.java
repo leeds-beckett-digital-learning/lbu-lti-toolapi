@@ -15,39 +15,39 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  *
  * @author maber01
  */
-@JsonIgnoreProperties({ "dataSourceId", "userName", "studentId", "educationLevel",
-                        "gender", "pronouns", "birthDate", "created", "modified",
-                        "lastLogin", "institutionRoleIds", "systemRoleIds",
-                        "availability", "job", "address", "locale",
-                        "avatar", "pronounciation", "pronounciationAudio"
-                      })
-public class UserV1
+@JsonIgnoreProperties({ "created", "modified", "availability", "enrollment" })
+public class GroupV2
 {
   private final String id;
   private final String uuid;
   private final String externalId;
-  private final Name name;
-  private final Contact contact;
+  private final String groupSetId;
+  private final String name;
+  private final String description;
 
-  public UserV1( 
-          @JsonProperty( "id" )           String id, 
-          @JsonProperty( "uuid" )         String uuid, 
-          @JsonProperty( "externalId" )   String externalId, 
-          @JsonProperty( "name" )         Name name, 
-          @JsonProperty( "contact" )      Contact contact )
+  public GroupV2( 
+          @JsonProperty("id")           String id, 
+          @JsonProperty("uuid")         String uuid, 
+          @JsonProperty("externalId")   String externalId, 
+          @JsonProperty("groupSetId")   String groupSetId, 
+          @JsonProperty("name")         String name, 
+          @JsonProperty("description")  String description )
   {
     this.id = id;
     this.uuid = uuid;
     this.externalId = externalId;
+    this.groupSetId = groupSetId;
     this.name = name;
-    this.contact = contact;
+    this.description = description;
   }
 
   public String getId()
@@ -65,13 +65,26 @@ public class UserV1
     return externalId;
   }
 
-  public Name getName()
+  public String getGroupSetId()
+  {
+    return groupSetId;
+  }
+
+  @JsonIgnore
+  public boolean isInGroupSet()
+  {
+    return !StringUtils.isBlank( groupSetId );
+  }
+  
+  public String getName()
   {
     return name;
   }
 
-  public Contact getContact()
+  public String getDescription()
   {
-    return contact;
+    return description;
   }
+  
+  
 }

@@ -86,6 +86,7 @@ public class JsonResult
       try
       {
         result = objectmapper.readValue( rawValue, c );
+        logger.log( Level.INFO, "Succeeded in interpreting JSON." );
         break;  // don't try other classes if this didn't throw exception
       }
       catch ( Exception ex )

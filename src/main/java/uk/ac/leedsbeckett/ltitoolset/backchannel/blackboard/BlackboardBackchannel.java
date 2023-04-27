@@ -29,6 +29,8 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.Availability;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1Input;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseGroupUsersV2Results;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseGroupsV2Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCoursesV3Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.RestExceptionMessage;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.UserV1;
@@ -90,7 +92,7 @@ public class BlackboardBackchannel extends Backchannel
 
     OAuth2Token t = getAuthToken();
     String token = t.getAccessToken();
-    String target = "https://" + platform + "/learn/api/public/v1/users/uuid:" + userId;
+    String target = "https://" + platform + "/learn/api/public/v1/users/" + userId;
     ArrayList<NameValuePair> params = new ArrayList<>();
 
     try
@@ -119,6 +121,88 @@ public class BlackboardBackchannel extends Backchannel
     try
     {
       return getBlackboardRest( target, token, params, GetCoursesV3Results.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+  
+  public JsonResult getV2CourseGroupSets( String courseId )
+  {
+    if ( StringUtils.isBlank( courseId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v2/courses/uuid:" + courseId + "/groups/sets";
+    ArrayList<NameValuePair> params = new ArrayList<>();
+        
+    try
+    {
+      return getBlackboardRest( target, token, params, GetCourseGroupsV2Results.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+  
+  public JsonResult getV2CourseGroups( String courseId )
+  {
+    if ( StringUtils.isBlank( courseId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v2/courses/uuid:" + courseId + "/groups";
+    ArrayList<NameValuePair> params = new ArrayList<>();
+        
+    try
+    {
+      return getBlackboardRest( target, token, params, GetCourseGroupsV2Results.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+  
+  public JsonResult getV2CourseGroupSetGroups( String courseId, String groupId )
+  {
+    if ( StringUtils.isBlank( courseId ) || StringUtils.isBlank( groupId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v2/courses/uuid:" + courseId + 
+            "/groups/sets/" + groupId + "/groups";
+    ArrayList<NameValuePair> params = new ArrayList<>();
+        
+    try
+    {
+      return getBlackboardRest( target, token, params, GetCourseGroupsV2Results.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+  
+  public JsonResult getV2CourseGroupUsers( String courseId, String groupId )
+  {
+    if ( StringUtils.isBlank( courseId ) || StringUtils.isBlank( groupId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v2/courses/uuid:" + courseId + 
+            "/groups/" + groupId + "/users";
+    ArrayList<NameValuePair> params = new ArrayList<>();
+        
+    try
+    {
+      return getBlackboardRest( target, token, params, GetCourseGroupUsersV2Results.class, RestExceptionMessage.class );
     }
     catch ( IOException ex )
     {
