@@ -105,7 +105,7 @@ public class BlackboardBackchannel extends Backchannel
     return null;
   }
   
-  public JsonResult getV3Courses( String courseId, boolean org )
+  public JsonResult getV3Courses( String courseId, boolean org, String availability )
   {
     if ( StringUtils.isBlank( courseId ) )
       return null;
@@ -117,6 +117,7 @@ public class BlackboardBackchannel extends Backchannel
     
     if ( !StringUtils.isBlank( courseId ) ) params.add( new BasicNameValuePair( "courseId", courseId ) );
     params.add( new BasicNameValuePair( "organization", Boolean.toString( org ) ) );
+    if ( !StringUtils.isBlank( availability ) ) params.add( new BasicNameValuePair( "availability.available", availability ) );
     
     try
     {
