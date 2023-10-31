@@ -42,8 +42,10 @@ public class ToolConfiguration
 
   String strpathconfig;  
   String rawconfig;
+  String hostName;
     
   String backchannelProxy = null;
+  boolean developmentTrustAllServersMode = false;
 
   /**
    * The original JSON formatted text that was most recently loaded.
@@ -69,6 +71,17 @@ public class ToolConfiguration
   {
     return backchannelProxy;
   }  
+
+  public boolean isDevelopmentTrustAllServersMode()
+  {
+    return developmentTrustAllServersMode;
+  }
+
+  public String getHostName()
+  {
+    return hostName;
+  }
+  
   
   /**
    * Load a configuration file in JSON format.
@@ -91,13 +104,19 @@ public class ToolConfiguration
         logger.fine( "ToolConfiguration loading." );
         if ( node.has( "backchannelProxy" ) )
         {
-          logger.fine( "Has field" );
           JsonNode n = node.get( "backchannelProxy" );
-          logger.fine( n.asText() );
           this.backchannelProxy = n.asText();
         }
-        else
-          logger.fine( "Does not have field" );
+        if ( node.has( "developmentTrustAllServersMode" ) )
+        {
+          JsonNode n = node.get( "developmentTrustAllServersMode" );
+          this.developmentTrustAllServersMode = n.asBoolean( false );
+        }
+        if ( node.has( "hostName" ) )
+        {
+          JsonNode n = node.get( "hostName" );
+          this.hostName = n.asText( "localhost" );
+        }
       }
     }
     catch ( FileNotFoundException ex )

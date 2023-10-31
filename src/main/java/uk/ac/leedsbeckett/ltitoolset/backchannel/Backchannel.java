@@ -16,15 +16,24 @@
 package uk.ac.leedsbeckett.ltitoolset.backchannel;
 
 
+import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyManagementException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.net.ssl.SSLContext;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
@@ -40,15 +49,16 @@ import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.conn.routing.HttpRoutePlanner;
+import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.auth.BasicScheme;
-import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.BasicResponseHandler;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.ssl.SSLContextBuilder;
 import uk.ac.leedsbeckett.lti.services.data.ServiceStatus;
 import uk.ac.leedsbeckett.lti.services.nrps.data.NrpsMembershipContainer;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.OAuth2Error;
@@ -65,13 +75,29 @@ public abstract class Backchannel
 {
   static final Logger logger = Logger.getLogger(Backchannel.class.getName() );
 
+  private static final ObjectMapper reqobjectmapper = new ObjectMapper();
+  static
+  {
+    reqobjectmapper.enable( SerializationFeature.INDENT_OUTPUT );
+    reqobjectmapper.disable( SerializationFeature.FAIL_ON_EMPTY_BEANS );
+    reqobjectmapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+  }  
+  
+  
   protected final HashSet<BackchannelOwner> owners = new HashSet<>();
   
+  protected boolean developmentTrustAllServersMode = false;
   protected String httpsproxyurl = null;
   protected HttpRoutePlanner routePlanner = null;
 
   protected final ArrayList<OAuth2Token> tokenList = new ArrayList<>();
   
+  protected HttpClientBuilder clientBuilder;
+
+  public Backchannel()
+  {
+    recreateClientBuilder();
+  }
   
   public void addOwner( BackchannelOwner owner )
   {
@@ -93,21 +119,50 @@ public abstract class Backchannel
     return !owners.isEmpty();
   }
   
-  public void setHttpsProxyUrl( String url )
+  private void recreateClientBuilder()
   {
-    httpsproxyurl = url;
+    clientBuilder = HttpClients.custom();
     if ( StringUtils.isBlank( httpsproxyurl ) )
+    {
       routePlanner = null;
+    }
     else
       try
       {
-        HttpHost host = HttpHost.create( url );
+        HttpHost host = HttpHost.create( httpsproxyurl );
         routePlanner = new DefaultProxyRoutePlanner( host );
+        clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
       }
       catch ( Throwable th )
       {
         logger.log( Level.SEVERE, "Unable to set up route planner.", th );
       }
+   
+    if ( developmentTrustAllServersMode )
+    {
+      logger.log( Level.WARNING, "Setting up backchannel to ignore invalid server SSL connections!!!! Development only!!!!" );
+      try
+      {
+        SSLContext sslc = new SSLContextBuilder().loadTrustMaterial( null, TrustAllStrategy.INSTANCE ).build();
+        clientBuilder = clientBuilder.setSSLContext( sslc );
+      }
+      catch ( NoSuchAlgorithmException | KeyStoreException | KeyManagementException ex )
+      {
+        Logger.getLogger( Backchannel.class.getName() ).log( Level.SEVERE, null, ex );
+      }
+    }
+  }
+
+  public void setDevelopmentTrustAllServersMode( boolean developmentTrustAllServersMode )
+  {
+    this.developmentTrustAllServersMode = developmentTrustAllServersMode;
+    recreateClientBuilder();
+  }
+  
+  public void setHttpsProxyUrl( String url )
+  {
+    httpsproxyurl = url;
+    recreateClientBuilder();
   }
 
   public String getPublicText( String url,  List<NameValuePair> params )
@@ -131,9 +186,6 @@ public abstract class Backchannel
     final HttpGet httpGet = new HttpGet( target );
     
     logger.log( Level.INFO, "Executing GET on {0}", target );
-    HttpClientBuilder clientBuilder = HttpClients.custom();
-    if ( routePlanner != null )
-      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpGet))
@@ -156,9 +208,6 @@ public abstract class Backchannel
     
     httpPost.setEntity( new UrlEncodedFormEntity( params ) );
     logger.log( Level.INFO, "Executing POST on {0}", url );
-    HttpClientBuilder clientBuilder = HttpClients.custom();
-    if ( routePlanner != null )
-      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpPost))
@@ -175,10 +224,6 @@ public abstract class Backchannel
           String uname, 
           String secret ) throws IOException
   {
-    HttpHost host = HttpHost.create( url );
-    
-    final BasicCredentialsProvider provider = new BasicCredentialsProvider();
-    
     UsernamePasswordCredentials creds = new UsernamePasswordCredentials( uname, secret );
     BasicScheme scheme = new BasicScheme();
 
@@ -193,9 +238,6 @@ public abstract class Backchannel
     httpPost.setEntity(new UrlEncodedFormEntity(params));
     
     logger.log( Level.INFO, "Executing POST on {0}", url );
-    HttpClientBuilder clientBuilder = HttpClients.custom();
-    if ( routePlanner != null )
-      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpPost,context))
@@ -233,9 +275,6 @@ public abstract class Backchannel
     
     
     logger.log( Level.INFO, "Executing GET on {0}", target );
-    HttpClientBuilder clientBuilder = HttpClients.custom();
-    if ( routePlanner != null )
-      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpGet))
@@ -275,9 +314,6 @@ public abstract class Backchannel
     httpPut.setEntity( stringEntity );
     
     logger.log( Level.INFO, "Executing PUT on {0}", target );
-    HttpClientBuilder clientBuilder = HttpClients.custom();
-    if ( routePlanner != null )
-      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute( httpPut ))
@@ -289,6 +325,28 @@ public abstract class Backchannel
     }
   }
 
+  public JsonResult postJsonObject( String url, String token, Object data, Class<?> successClass, Class<?> failClass ) throws IOException
+  {
+    String s = serializeObject( data );
+    
+    final HttpPost httpPost = new HttpPost( url );
+    httpPost.addHeader( "Authorization", "Bearer " + token );
+    httpPost.setHeader("Accept", "application/json");
+    httpPost.setHeader("Content-type", "application/json; charset=utf-8");
+    StringEntity stringEntity = new StringEntity( s, StandardCharsets.UTF_8 );
+    httpPost.setEntity( stringEntity );
+    
+    logger.log( Level.INFO, "Executing POST on {0}", url );
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute( httpPost ))
+    {
+      return new JsonResult( 
+              response,
+              successClass,
+              failClass );
+    }
+  }
   
   public JsonResult getNamesRoles( String url, String token ) throws IOException
   {
@@ -298,9 +356,6 @@ public abstract class Backchannel
     httpGet.addHeader( "Accept", "application/vnd.ims.lti-nrps.v2.membershipcontainer+json" );
     httpGet.addHeader( "Authorization", bearer );
     logger.log( Level.INFO, "Executing POST on {0}", url );
-    HttpClientBuilder clientBuilder = HttpClients.custom();
-    if ( routePlanner != null )
-      clientBuilder = clientBuilder.setRoutePlanner( routePlanner );
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpGet))
@@ -329,5 +384,27 @@ public abstract class Backchannel
       return null;
     }
   }  
-  
+
+
+  String serializeObject( Object o )
+  {
+    if ( !reqobjectmapper.canSerialize( o.getClass() ) )
+    {
+      logger.log( Level.SEVERE, "Unable to serialize object of class " + o.getClass() );
+      return null;
+    }
+    
+    StringWriter writer = new StringWriter();
+    try
+    {
+      String data = reqobjectmapper.writeValueAsString( o );
+      logger.log( Level.INFO, data );
+      return data;
+    }
+    catch ( JsonProcessingException ex )
+    {
+      Logger.getLogger( Backchannel.class.getName() ).log( Level.SEVERE, null, ex );
+      return null;
+    }
+  }
 }

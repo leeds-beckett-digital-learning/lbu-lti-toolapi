@@ -53,4 +53,11 @@ public @interface ToolSetMapping
    * @return The URL.
    */
   public String jwksUrl();   
+  
+  /**
+   * Where the auto-reg-init is mapped in URL space relative to servlet context.
+   * 
+   * @return The URL.
+   */
+  public String autoRegUrl();
 }

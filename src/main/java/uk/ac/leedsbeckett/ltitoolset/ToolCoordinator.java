@@ -53,6 +53,9 @@ import javax.websocket.WebSocketContainer;
 import javax.websocket.server.ServerContainer;
 import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
+import uk.ac.leedsbeckett.lti.registration.LtiToolConfiguration;
+import uk.ac.leedsbeckett.lti.registration.LtiToolConfigurationCustomParameters;
+import uk.ac.leedsbeckett.lti.registration.LtiToolRegistration;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolSetMapping;
@@ -62,6 +65,8 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelOwner;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.JwksBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.JwksBackchannelKey;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiAutoRegistrationBackchannel;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiAutoRegistrationBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardConfiguration;
@@ -69,6 +74,7 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchanne
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.jwks.JwksStore;
+import uk.ac.leedsbeckett.ltitoolset.servlet.AutoRegServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolJwksServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLaunchServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLoginServlet;
@@ -124,6 +130,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     return get( context );
   }
 
+  private String contextPath;
   
   private final HashMap<ToolKey,Tool> toolMap = new HashMap<>();  
   private final HashMap<ToolKey,ToolMapping> toolMappingMap = new HashMap<>();  
@@ -170,6 +177,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     // Put this coordinator in a place where servlets can find it
     ctx.setAttribute( this.getClass().getName(), this );
    
+    contextPath = ctx.getContextPath();
     
     // Spec. says that web socket ServerContainer will be found in this attribute:
     // ServerContainer is a subclass of websocketcontainer specialised to servers.
@@ -298,13 +306,15 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    */
   private void initServlets( ServletContext ctx )
   {
-    ServletRegistration loginReg  = ctx.addServlet( "ToolLoginServlet",  ToolLoginServlet.class );
-    ServletRegistration launchReg = ctx.addServlet( "ToolLaunchServlet", ToolLaunchServlet.class );
-    ServletRegistration jwksReg   = ctx.addServlet( "ToolJwksServlet",   ToolJwksServlet.class );
+    ServletRegistration loginReg  = ctx.addServlet( "ToolLoginServlet",   ToolLoginServlet.class );
+    ServletRegistration launchReg = ctx.addServlet( "ToolLaunchServlet",  ToolLaunchServlet.class );
+    ServletRegistration jwksReg   = ctx.addServlet( "ToolJwksServlet",    ToolJwksServlet.class );
+    ServletRegistration ariReg    = ctx.addServlet("AutoRegInitServlet", AutoRegServlet.class );
     
-    loginReg.addMapping(  toolSetMapping.loginUrl()  );
-    launchReg.addMapping( toolSetMapping.launchUrl() );
-    jwksReg.addMapping(   toolSetMapping.jwksUrl()   );
+    loginReg.addMapping(  toolSetMapping.loginUrl()       );
+    launchReg.addMapping( toolSetMapping.launchUrl()      );
+    jwksReg.addMapping(   toolSetMapping.jwksUrl()        );
+    ariReg.addMapping(    toolSetMapping.autoRegUrl() );
   }
   
   /**
@@ -443,6 +453,38 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     }
   }  
   
+  
+  public LtiToolRegistration createToolRegistration()
+  {
+    String uribase = "https://" + toolconfig.getHostName() + this.contextPath;
+    LtiToolRegistration toolreg = new LtiToolRegistration();
+    LtiToolConfiguration config = new LtiToolConfiguration();
+    LtiToolConfigurationCustomParameters customparams = new LtiToolConfigurationCustomParameters();
+        
+    toolreg.setApplicationType( "web" );
+    toolreg.setGrantTypes( new String[] {"implicit", "client_credentials" } );
+    toolreg.setInitiateLoginUri( uribase + toolSetMapping.loginUrl() );
+    toolreg.setRedirectUris( new String[] { uribase + toolSetMapping.launchUrl() } );
+    toolreg.setClientName( "MoodleClient" );
+    toolreg.setJwksUri( uribase + toolSetMapping.jwksUrl() );
+    toolreg.setTokenEndpointAuthMethod( "private_key_jwt" );
+    toolreg.setLtiToolConfiguration( config );
+    
+    config.setDomain( toolconfig.getHostName() );
+    config.setTargetLinkUri( uribase );
+    config.setClaims( new String[] {"iss", "sub","name", "given_name", "family_name"} );
+    config.setDescription( "This description should be customised by the app." );
+    config.setCustomParameters( customparams );
+    
+    customparams.setParameter( "digles.leedsbeckett.ac.uk#tool_name", "peergrpassess" );
+    customparams.setParameter( "digles.leedsbeckett.ac.uk#tool_type", "coursecontent" );
+    
+    return toolreg;
+  }
+  
+  
+  
+  
   public Backchannel getBackchannel( BackchannelOwner owner, BackchannelKey key, ToolSetLtiState state )
   {    
     synchronized ( backchannelmap )
@@ -474,6 +516,11 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
                 this.privateKey );
       }
       
+      if ( key instanceof LtiAutoRegistrationBackchannelKey )
+      {
+        b = new LtiAutoRegistrationBackchannel( key );
+      }
+      
       if ( key instanceof JwksBackchannelKey )
       {
         b = new JwksBackchannel();
@@ -488,6 +535,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
           logger.log(Level.INFO, "Setting proxy to {0}", toolconfig.getBackchannelProxy());
           b.setHttpsProxyUrl( toolconfig.getBackchannelProxy() );
         }
+        b.setDevelopmentTrustAllServersMode( toolconfig.isDevelopmentTrustAllServersMode() );
         b.addOwner( owner );
       }      
  
