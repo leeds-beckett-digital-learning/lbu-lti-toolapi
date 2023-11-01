@@ -212,8 +212,15 @@ public abstract class ToolEndpoint implements BackchannelOwner
     // If it hasn't already been done for this class, map the handler methods.
     getHandlerMap( this.getClass() );
     String platform = getState().getPlatformName();
-    URL url = new URL( platform );
-    platformHost = url.getHost();
+    try
+    {
+      URL url = new URL( platform );
+      platformHost = url.getHost();
+    }
+    catch ( Exception e )
+    {
+      platformHost = null;
+    }
   }
   
   /**

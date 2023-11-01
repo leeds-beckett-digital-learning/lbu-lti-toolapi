@@ -471,7 +471,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     toolreg.setLtiToolConfiguration( config );
     
     config.setDomain( toolconfig.getHostName() );
-    config.setTargetLinkUri( uribase );
+    config.setTargetLinkUri( uribase + toolSetMapping.launchUrl() );
     config.setClaims( new String[] {"iss", "sub","name", "given_name", "family_name"} );
     config.setDescription( "This description should be customised by the app." );
     config.setCustomParameters( customparams );

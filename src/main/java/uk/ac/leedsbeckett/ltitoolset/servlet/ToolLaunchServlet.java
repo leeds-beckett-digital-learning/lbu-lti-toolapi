@@ -100,7 +100,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
         logger.fine( mapper.writerWithDefaultPrettyPrinter().writeValueAsString( state ) );
       }
             
-      logger.fine( "Forwarding to peer group assessment tool index page." );
+      logger.fine( "Forwarding to tool index page." );
       StringBuilder sb = new StringBuilder();
       sb.append( request.getContextPath() )
         .append( toolMapping.launchURI()     )
