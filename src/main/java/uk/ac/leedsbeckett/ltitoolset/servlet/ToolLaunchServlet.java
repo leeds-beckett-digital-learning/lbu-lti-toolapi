@@ -28,6 +28,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
+import uk.ac.leedsbeckett.lti.config.ClientLtiConfiguration;
+import uk.ac.leedsbeckett.lti.config.ClientLtiConfigurationKey;
 import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
 import uk.ac.leedsbeckett.lti.servlet.LtiLaunchServlet;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
@@ -37,6 +39,8 @@ import uk.ac.leedsbeckett.ltitoolset.ToolKey;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
+import uk.ac.leedsbeckett.ltitoolset.config.ClientLtiConfigurationImpl;
+import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
 
 
 /**
@@ -69,11 +73,17 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     logger.info( "Processing Launch Request" );
     ToolCoordinator toolManager = ToolCoordinator.get( request.getServletContext() );
     if ( toolManager == null ) { response.sendError( 500, "Cannot find tool manager." ); return; }
-        
-    String toolname = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_name" );
-    String tooltype = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_type" );
 
-    ToolKey toolKey = new ToolKey( tooltype, toolname );
+    LtiConfigurationImpl config = (LtiConfigurationImpl)this.getLtiConfiguration( request.getServletContext() );
+    ClientLtiConfigurationKey clientkey = state.getClientKey();
+    ClientLtiConfigurationImpl clientconfig = (ClientLtiConfigurationImpl)config.getClientLtiConfiguration( clientkey );
+    
+    // String toolid = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_name" );
+    // String tooltype = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_type" );
+    String toolid = clientconfig.getToolId();
+    String tooltype = clientconfig.getToolType();
+
+    ToolKey toolKey = new ToolKey( tooltype, toolid );
     Tool tool = toolManager.getTool( toolKey );
     ToolMapping toolMapping = toolManager.getToolMapping( toolKey );
     
@@ -144,7 +154,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
       
       out.println( "<h2>Technical breakdown of launch request</h2>" );
       out.println( "<table>");
-      out.println( "<tr><th>toolname</th><td>" + toolname + "</td></tr>" );
+      out.println( "<tr><th>toolname</th><td>" + toolid + "</td></tr>" );
       out.println( "<tr><th>tooltype</th><td>" + tooltype + "</td></tr>" );
       out.println( "</table>");
 

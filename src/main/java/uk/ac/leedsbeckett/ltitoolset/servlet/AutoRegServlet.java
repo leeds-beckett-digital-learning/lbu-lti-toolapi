@@ -13,13 +13,17 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
+import uk.ac.leedsbeckett.lti.config.ClientLtiConfigurationKey;
 import uk.ac.leedsbeckett.lti.registration.ConsumerConfiguration;
-import uk.ac.leedsbeckett.lti.registration.LtiToolConfiguration;
 import uk.ac.leedsbeckett.lti.registration.LtiToolRegistration;
+import uk.ac.leedsbeckett.ltitoolset.Tool;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
+import uk.ac.leedsbeckett.ltitoolset.ToolKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelOwner;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiAutoRegistrationBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiAutoRegistrationBackchannelKey;
+import uk.ac.leedsbeckett.ltitoolset.config.ClientLtiConfigurationImpl;
+import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
 
 /**
  *
@@ -54,22 +58,25 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     for ( int i=0; i<parts.length; i++ )
       logger.log(Level.INFO, "Path part {0} = {1}", new Object[]{i, parts[i]} );
     
-    if ( parts.length != 3 )
+    if ( parts.length != 4 )
     {
       resp.sendError( 404, "Invalid URL contains wrong number of elements in path." );
       return;
     }
     
-    String action = parts[1];
+    String action   = parts[1];
+    String tooltype = parts[2];
+    String toolid   = parts[3];
     if ( null == action )
     {
       resp.sendError( 404, "Invalid URL contains null 'action'." );
       return;      
     }
-    else switch ( action )
+            
+    switch ( action )
     {
       case "init":
-        actionInit( req, resp );
+        actionInit( req, resp, tooltype, toolid );
         break;
       case "confirm":
         actionConfirm( req, resp );
@@ -81,11 +88,15 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     
   }
 
-  protected void actionInit( HttpServletRequest req, HttpServletResponse resp )
+  protected void actionInit( HttpServletRequest req, HttpServletResponse resp, String tooltype, String toolid )
           throws ServletException, IOException
   {    
     ToolCoordinator toolCoord  = ToolCoordinator.get( req.getServletContext() );
     if ( toolCoord  == null ) { resp.sendError( 500, "Cannot find tool manager." ); return; }
+    Tool tool = toolCoord.getTool( tooltype, toolid );
+    if ( tool == null ) { resp.sendError( 500, "Cannot find tool based on tool type and id in path." ); return; }
+    
+    LtiConfigurationImpl lticonfig = toolCoord.getLtiConfiguration();
     
     String openidcurl = req.getParameter( "openid_configuration" );
     logger.info( openidcurl );
@@ -108,19 +119,37 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     }
     
     // Fetch the LTI tool consumer's auto registration configuration
-    ConsumerConfiguration config = backchannel.getOpenIdConfiguration();
-    if ( config == null )
+    ConsumerConfiguration consumerconfig = backchannel.getOpenIdConfiguration();
+    if ( consumerconfig == null )
     {
       resp.sendError( 500, "Unable to fetch the LTI tool consumer's configuration." );
       return;
     }
     
     // Set up an Lti Tool registration object
-    LtiToolRegistration toolregin = toolCoord.createToolRegistration();
+    LtiToolRegistration toolregin = toolCoord.createToolRegistration( tool.getTitle() );
     
     // Post it to the LTI tool consumer's configured registration endpoint
     // It should be sent back with some fields filled in.
-    LtiToolRegistration toolregout = backchannel.postToolRegistration( config.getRegistrationEndpoint(), token, toolregin );
+    LtiToolRegistration toolregout = backchannel.postToolRegistration( consumerconfig.getRegistrationEndpoint(), token, toolregin );
+  
+    ClientLtiConfigurationKey lticlientkey = new ClientLtiConfigurationKey( consumerconfig.getIssuer(),  toolregout.getClientId() );
+    ClientLtiConfigurationImpl lticlient = lticonfig.get( lticlientkey, true );
+    if ( lticlient == null )
+    {
+      resp.sendError( 500, "Unable to fetch or create LTI client configuration." );
+      return;
+    }
+    // Now set up the LTI client config based on registration data
+    lticlient.setToolId( toolid );
+    lticlient.setToolType( tooltype );
+    lticlient.setAuthJwksUrl( consumerconfig.getJwksUri() );
+    lticlient.setAuthLoginUrl( consumerconfig.getAuthorizationEndpoint() );
+    lticlient.setAuthTokenUrl( consumerconfig.getTokenEndpoint() );
+    lticonfig.update( lticlient );
+    
+    toolCoord.getJwksStore().registerUri( consumerconfig.getJwksUri() );
+
     
     resp.setContentType( "text/html" );
     ServletOutputStream out = resp.getOutputStream();
@@ -131,9 +160,9 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     out.println( "</pre><h4>Registration Token</h4><pre>");
     out.println( req.getParameter( "registration_token" ) );
     out.println( "</pre><h4>LTI Consumer Configuration Issuer</h4><pre>");
-    out.println( config.getIssuer() );
+    out.println( consumerconfig.getIssuer() );
     out.println( "</pre><h4>LTI Consumer Configuration Resgistration Endpoint</h4><pre>");
-    out.println( config.getRegistrationEndpoint() );
+    out.println( consumerconfig.getRegistrationEndpoint() );
     out.println( "</pre>" );
     
     if ( toolregout != null )

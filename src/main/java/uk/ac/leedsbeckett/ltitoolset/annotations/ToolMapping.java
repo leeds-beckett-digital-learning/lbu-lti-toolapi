@@ -34,7 +34,7 @@ public @interface ToolMapping
    * 
    * @return The name.
    */
-  public String name();
+  public String id();
   
   /**
    * Tool type that maps to the annotated tool.
@@ -42,6 +42,13 @@ public @interface ToolMapping
    * @return The type.
    */
   public String type();
+  
+  /**
+   * The human readable title.
+   * 
+   * @return The title.
+   */
+  public String title();
   
   /**
    * The URI which the launch process should send the user to.

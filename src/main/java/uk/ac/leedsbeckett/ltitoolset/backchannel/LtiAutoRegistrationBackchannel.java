@@ -46,7 +46,7 @@ public class LtiAutoRegistrationBackchannel extends Backchannel
   {
     String raw = this.getPublicText( openidconfigurl, null );
     logger.info( raw );
-    return new ConsumerConfiguration( raw );
+    return ConsumerConfiguration.load( raw );
   }
   
   public LtiToolRegistration postToolRegistration( String url, String token, LtiToolRegistration reg ) throws IOException

@@ -17,9 +17,12 @@ package uk.ac.leedsbeckett.ltitoolset.jwks;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.File;
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.Key;
 import java.util.ArrayList;
@@ -62,7 +65,33 @@ public class JwksStore extends Store<String,JwksEntry> implements Runnable, Jwks
     this.jwksbc = jwksbc;
   }
 
-  public void addUri( String uri )
+  public void updateUriList()
+  {
+    synchronized( uriList )
+    {
+      File[] files = basepath.toFile().listFiles();
+      uriList.clear();
+      for ( File f : files )
+      {
+        if ( !f.exists() ) continue;
+        if ( !f.isFile() ) continue;
+        if ( !f.getName().endsWith(  "json" ) ) continue;
+        if ( !f.getName().startsWith(  "http" ) ) continue;
+        String url = URLDecoder.decode( f.getName(), StandardCharsets.UTF_8 );
+        addUri( url );
+      }
+    }    
+  }
+
+  public void registerUri( String uri )
+  {
+    // Force creation of file with no keys in it
+    get( uri, true );
+    // Refresh it now
+    refreshAnother( uri );
+  }
+  
+  private void addUri( String uri )
   {
     synchronized( uriList )
     {
@@ -73,7 +102,7 @@ public class JwksStore extends Store<String,JwksEntry> implements Runnable, Jwks
   public void startRefreshing()
   {
     executorService = Executors.newSingleThreadScheduledExecutor();
-    executorService.scheduleAtFixedRate( this, 1, 60, TimeUnit.MINUTES );
+    executorService.scheduleAtFixedRate( this, 1, 5, TimeUnit.MINUTES );
   }
   
   public void stopRefreshing()
@@ -92,7 +121,7 @@ public class JwksStore extends Store<String,JwksEntry> implements Runnable, Jwks
   }
   
   
-  private void refreshAnother( String uri )
+  private synchronized void refreshAnother( String uri )
   {
     logger.log(Level.FINE, "Refreshing {0}", uri);
     
@@ -130,6 +159,7 @@ public class JwksStore extends Store<String,JwksEntry> implements Runnable, Jwks
   public void run()
   {
     logger.fine( "Running store refresher." );
+    updateUriList();
     int size = uriList.size();
     for ( int n=0; n<size; n++ )
     {

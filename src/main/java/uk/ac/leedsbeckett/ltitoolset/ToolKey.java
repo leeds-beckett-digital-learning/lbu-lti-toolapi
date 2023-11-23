@@ -30,11 +30,11 @@ public class ToolKey extends TwoStringKey
    * Construct key based on two strings.
    * 
    * @param type The type of the tool - e.g. placement type.
-   * @param name The name of the tool.
+   * @param id The name of the tool.
    */
-  public ToolKey( String type, String name )
+  public ToolKey( String type, String id )
   {
-    super( type, name );
+    super( type, id );
   } 
   
   /**
@@ -44,7 +44,7 @@ public class ToolKey extends TwoStringKey
    */
   public ToolKey( ToolMapping mapping )
   {
-    super( mapping.type(), mapping.name() );
+    super( mapping.type(), mapping.id() );
   }
   
   /**
@@ -59,5 +59,5 @@ public class ToolKey extends TwoStringKey
    * 
    * @return Name of the tool.
    */
-  public String getName() { return getB(); }
+  public String getId() { return getB(); }
 }

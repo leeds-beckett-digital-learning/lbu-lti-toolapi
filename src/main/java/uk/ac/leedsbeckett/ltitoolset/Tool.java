@@ -19,6 +19,7 @@ import java.lang.annotation.Annotation;
 import javax.servlet.ServletContext;
 import javax.websocket.server.ServerEndpoint;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
@@ -28,12 +29,23 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
  */
 public abstract class Tool
 {
+  
   /**
    * All tool implementations are initalized with a ServletContext.
    * 
    * @param ctx The ServletContext
    */
   public abstract void init( ServletContext ctx );
+  
+  
+  public String getTitle()
+  {
+    ToolMapping[] mappings = this.getClass().getAnnotationsByType( ToolMapping.class );
+    if ( mappings.length == 0 )
+      return "LTI Tool";
+    return mappings[0].title();
+  }
+  
   
   /**
    * Each tool must know how to create a ToolLaunchState using its preferred

@@ -72,6 +72,7 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannelKey;
+import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.jwks.JwksStore;
 import uk.ac.leedsbeckett.ltitoolset.servlet.AutoRegServlet;
@@ -134,7 +135,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   
   private final HashMap<ToolKey,Tool> toolMap = new HashMap<>();  
   private final HashMap<ToolKey,ToolMapping> toolMappingMap = new HashMap<>();  
-  private final LtiConfiguration lticonfig = new LtiConfiguration();
+  private LtiConfigurationImpl lticonfig;
   private final ToolConfiguration toolconfig = new ToolConfiguration();
   private LtiStateStore<ToolSetLtiState> ltistatestore;
   private ToolSetMapping toolSetMapping = null;
@@ -329,15 +330,15 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   }
   
   /**
-   * Find a tool mapping object based on type and name.
+   * Find a tool mapping object based on type and id.
    * 
    * @param type The tool type.
-   * @param name The tool name.
+   * @param id The tool id.
    * @return The tool mapping or null;
    */
-  public ToolMapping getToolMapping( String type, String name )
+  public ToolMapping getToolMapping( String type, String id )
   {
-    return toolMappingMap.get( new ToolKey( type, name ) );
+    return toolMappingMap.get( new ToolKey( type, id ) );
   }
   
   /**
@@ -352,15 +353,15 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   }
   
   /**
-   * Find a tool object based on type and name.
+   * Find a tool object based on type and id.
    * 
    * @param type The tool type.
-   * @param name The tool name.
+   * @param id The tool id.
    * @return The tool mapping or null;
    */
-  public Tool getTool( String type, String name )
+  public Tool getTool( String type, String id )
   {
-    return toolMap.get( new ToolKey( type, name ) );
+    return toolMap.get( new ToolKey( type, id ) );
   }
 
 
@@ -399,6 +400,13 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     JwksBackchannel jwksbc = (JwksBackchannel)getBackchannel( this, JwksBackchannelKey.getInstance(), null );
     jwksStore = new JwksStore( Paths.get( context.getRealPath( "/WEB-INF/jwks/" ) ), jwksbc );
   }
+
+  public JwksStore getJwksStore()
+  {
+    return jwksStore;
+  }
+  
+  
   
   /**
    * Load the LTI configuration file from a standard location.
@@ -407,15 +415,12 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    */
   private void initLtiConfiguration( ServletContext context )
   {
-    String configpath = context.getRealPath( "/WEB-INF/config.json" );
+    String configpath = context.getRealPath( "/WEB-INF/lti/" );
     logger.log( Level.INFO, "Loading LTI configuration from: {0}", configpath );
     
     if ( !StringUtils.isEmpty( configpath ) )
     {
-      lticonfig.load( configpath );
-      logger.log( Level.INFO, "Raw configuration: {0}", lticonfig.getRawConfiguration() );
-      for ( String url : lticonfig.getAllJksUrls() )
-          jwksStore.addUri( url );
+      lticonfig = new LtiConfigurationImpl( Paths.get( context.getRealPath( "/WEB-INF/lti/" ) ) );
       jwksStore.startRefreshing();
       lticonfig.setJwksSigningKeyResolver( jwksStore );
     }
@@ -454,7 +459,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   }  
   
   
-  public LtiToolRegistration createToolRegistration()
+  public LtiToolRegistration createToolRegistration( String clientName )
   {
     String uribase = "https://" + toolconfig.getHostName() + this.contextPath;
     LtiToolRegistration toolreg = new LtiToolRegistration();
@@ -465,7 +470,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     toolreg.setGrantTypes( new String[] {"implicit", "client_credentials" } );
     toolreg.setInitiateLoginUri( uribase + toolSetMapping.loginUrl() );
     toolreg.setRedirectUris( new String[] { uribase + toolSetMapping.launchUrl() } );
-    toolreg.setClientName( "MoodleClient" );
+    toolreg.setClientName( clientName );
     toolreg.setJwksUri( uribase + toolSetMapping.jwksUrl() );
     toolreg.setTokenEndpointAuthMethod( "private_key_jwt" );
     toolreg.setLtiToolConfiguration( config );
@@ -475,9 +480,6 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     config.setClaims( new String[] {"iss", "sub","name", "given_name", "family_name"} );
     config.setDescription( "This description should be customised by the app." );
     config.setCustomParameters( customparams );
-    
-    customparams.setParameter( "digles.leedsbeckett.ac.uk#tool_name", "peergrpassess" );
-    customparams.setParameter( "digles.leedsbeckett.ac.uk#tool_type", "coursecontent" );
     
     return toolreg;
   }
@@ -571,7 +573,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    * Get the LTI configuration.
    * @return The config object.
    */
-  public LtiConfiguration getLtiConfiguration()
+  public LtiConfigurationImpl getLtiConfiguration()
   {
     return lticonfig;
   }  
