@@ -330,7 +330,8 @@ public abstract class Backchannel
     String s = serializeObject( data );
     
     final HttpPost httpPost = new HttpPost( url );
-    httpPost.addHeader( "Authorization", "Bearer " + token );
+    if ( token != null )
+      httpPost.addHeader( "Authorization", "Bearer " + token );
     httpPost.setHeader("Accept", "application/json");
     httpPost.setHeader("Content-type", "application/json; charset=utf-8");
     StringEntity stringEntity = new StringEntity( s, StandardCharsets.UTF_8 );

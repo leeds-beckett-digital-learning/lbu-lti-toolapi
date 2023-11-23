@@ -91,14 +91,17 @@ public class LtiConfigurationImpl extends Store<ClientLtiConfigurationKey,Client
   public Path getPath( ClientLtiConfigurationKey key )
   {
     Path issuer = basepath.resolve( URLEncoder.encode( key.getIssuerName(), StandardCharsets.UTF_8 ) );
-    return issuer.resolve( URLEncoder.encode( key.getClientId(), StandardCharsets.UTF_8 ) );
+    Path client = issuer.resolve( URLEncoder.encode( key.getClientId(), StandardCharsets.UTF_8 ) );
+    logger.log(Level.INFO, "Path of LTI client config file: {0}", client.toString());
+    return client;
   }
 
   @Override
   public ClientLtiConfiguration getClientLtiConfiguration( ClientLtiConfigurationKey clientkey )
   {
     ClientLtiConfigurationImpl clc = get( clientkey, false );
-    clc.setJwksresolver( jwksResolver );
+    if ( clc != null )
+      clc.setJwksresolver( jwksResolver );
     return clc;
   }
 

@@ -49,12 +49,21 @@ public class LtiAutoRegistrationBackchannel extends Backchannel
     return ConsumerConfiguration.load( raw );
   }
   
+  /**
+   * Attempt registration...
+   * 
+   * @param url The remote URL to access
+   * @param token Might be NULL if url includes token
+   * @param reg The registration object to post.
+   * @return A completed registration object.
+   * @throws IOException If communication fails.
+   */
   public LtiToolRegistration postToolRegistration( String url, String token, LtiToolRegistration reg ) throws IOException
   {
     JsonResult jr = this.postJsonObject( url, token, reg, LtiToolRegistration.class, null );
+    logger.info( jr.getRawValue() );
     if ( jr.isSuccessful() )
     {
-      logger.info( jr.getRawValue() );
       return (LtiToolRegistration)jr.getResult();
     }
     return null;

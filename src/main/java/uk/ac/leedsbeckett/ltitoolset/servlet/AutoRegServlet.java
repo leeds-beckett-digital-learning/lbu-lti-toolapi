@@ -15,6 +15,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.lti.config.ClientLtiConfigurationKey;
 import uk.ac.leedsbeckett.lti.registration.ConsumerConfiguration;
+import uk.ac.leedsbeckett.lti.registration.LtiToolConfigurationMessage;
 import uk.ac.leedsbeckett.lti.registration.LtiToolRegistration;
 import uk.ac.leedsbeckett.ltitoolset.Tool;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
@@ -100,12 +101,15 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     
     String openidcurl = req.getParameter( "openid_configuration" );
     logger.info( openidcurl );
+    
+    // This is set in moodle but for blackboard there is no token
+    // because authentication is encoded in the openidcurl
     String token = req.getParameter( "registration_token" );
     logger.info( token );
     
-    if ( StringUtils.isBlank( openidcurl ) || StringUtils.isBlank( token ) )
+    if ( StringUtils.isBlank( openidcurl ) )
     {
-      resp.sendError( 500, "Openid config URL or authentication token missing in page request." );
+      resp.sendError( 500, "Openid config URL missing in page request." );
       return;
     }
     
@@ -126,12 +130,26 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
       return;
     }
     
+    // Dreadful bodge to fix "issuer" for Blackboard!!!!!
+    if ( "https://developer.blackboard.com/".equals( consumerconfig.getIssuer() ) )
+      consumerconfig.setIssuer( "https://blackboard.com" );
+    
     // Set up an Lti Tool registration object
     LtiToolRegistration toolregin = toolCoord.createToolRegistration( tool.getTitle() );
+    
+    // Looks like Blackboard needs this field to be present
+    toolregin.getLtiToolConfiguration().setMessages( new LtiToolConfigurationMessage[0] );
+    // Experimenting with 'random' domain
+    toolregin.getLtiToolConfiguration().setDomain( "doobeedoo" );
     
     // Post it to the LTI tool consumer's configured registration endpoint
     // It should be sent back with some fields filled in.
     LtiToolRegistration toolregout = backchannel.postToolRegistration( consumerconfig.getRegistrationEndpoint(), token, toolregin );
+    if ( toolregout == null )
+    {
+      resp.sendError( 500, "Registration with tool consumer failed." );
+      return;
+    }
   
     ClientLtiConfigurationKey lticlientkey = new ClientLtiConfigurationKey( consumerconfig.getIssuer(),  toolregout.getClientId() );
     ClientLtiConfigurationImpl lticlient = lticonfig.get( lticlientkey, true );
