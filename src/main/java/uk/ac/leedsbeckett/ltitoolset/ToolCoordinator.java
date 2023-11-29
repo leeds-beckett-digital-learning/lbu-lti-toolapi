@@ -55,6 +55,7 @@ import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
 import uk.ac.leedsbeckett.lti.registration.LtiToolConfiguration;
 import uk.ac.leedsbeckett.lti.registration.LtiToolConfigurationCustomParameters;
+import uk.ac.leedsbeckett.lti.registration.LtiToolConfigurationMessage;
 import uk.ac.leedsbeckett.lti.registration.LtiToolRegistration;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
@@ -299,6 +300,13 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     toolSetMapping = mappings[0];    
   }
   
+  public String getToolSetName()
+  {
+    if ( toolSetMapping != null )
+      return toolSetMapping.name();
+    return "Unknown LTI Tools";
+  }
+  
   /**
    * Deploy the LTI login and launch servlets based on annotations from the
    * toolSetMapping annotation.
@@ -459,7 +467,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   }  
   
   
-  public LtiToolRegistration createToolRegistration( String clientName )
+  public LtiToolRegistration createToolRegistration()
   {
     String uribase = "https://" + toolconfig.getHostName() + this.contextPath;
     LtiToolRegistration toolreg = new LtiToolRegistration();
@@ -470,7 +478,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     toolreg.setGrantTypes( new String[] {"implicit", "client_credentials" } );
     toolreg.setInitiateLoginUri( uribase + toolSetMapping.loginUrl() );
     toolreg.setRedirectUris( new String[] { uribase + toolSetMapping.launchUrl() } );
-    toolreg.setClientName( clientName );
+    toolreg.setClientName( getToolSetName() );
     toolreg.setJwksUri( uribase + toolSetMapping.jwksUrl() );
     toolreg.setTokenEndpointAuthMethod( "private_key_jwt" );
     toolreg.setLtiToolConfiguration( config );
@@ -480,6 +488,17 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     config.setClaims( new String[] {"iss", "sub","name", "given_name", "family_name"} );
     config.setDescription( "This description should be customised by the app." );
     config.setCustomParameters( customparams );
+
+    LtiToolConfigurationMessage[] messages = new LtiToolConfigurationMessage[2];
+    messages[0] = new LtiToolConfigurationMessage();
+    messages[0].setType( "LtiResourceLink" );
+    messages[0].setTargetLinkUri( uribase + toolSetMapping.launchUrl() );
+    messages[0].setLabel( getToolSetName() );
+    messages[1] = new LtiToolConfigurationMessage();
+    messages[1].setType( "LtiDeepLinkingRequest" );
+    messages[1].setTargetLinkUri( uribase + toolSetMapping.launchUrl() );
+    messages[1].setLabel( getToolSetName() + " Deep Link" );
+    config.setMessages( messages );
     
     return toolreg;
   }

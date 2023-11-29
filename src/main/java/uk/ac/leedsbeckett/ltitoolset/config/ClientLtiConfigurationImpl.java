@@ -32,8 +32,6 @@ public class ClientLtiConfigurationImpl implements Entry<ClientLtiConfigurationK
   
   String issuerId;
   String clientId;
-  String toolId;
-  String toolType;
   String authLoginUrl;
   String authTokenUrl;
   String authJwksUrl;
@@ -65,27 +63,6 @@ public class ClientLtiConfigurationImpl implements Entry<ClientLtiConfigurationK
     if ( this.issuerId != null )
       throw new IllegalArgumentException( "Cannot change issuer ID of a client config." );
     this.issuerId = issuerId;
-  }
-
-  @Override
-  public String getToolId()
-  {
-    return toolId;
-  }
-
-  public void setToolId( String toolId )
-  {
-    this.toolId = toolId;
-  }
-  
-  public String getToolType()
-  {
-    return toolType;
-  }
-
-  public void setToolType( String toolType )
-  {
-    this.toolType = toolType;
   }
   
   @Override

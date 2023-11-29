@@ -28,6 +28,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
+import uk.ac.leedsbeckett.lti.claims.LtiDeepLinkingSettings;
 import uk.ac.leedsbeckett.lti.config.ClientLtiConfiguration;
 import uk.ac.leedsbeckett.lti.config.ClientLtiConfigurationKey;
 import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
@@ -74,14 +75,8 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     ToolCoordinator toolManager = ToolCoordinator.get( request.getServletContext() );
     if ( toolManager == null ) { response.sendError( 500, "Cannot find tool manager." ); return; }
 
-    LtiConfigurationImpl config = (LtiConfigurationImpl)this.getLtiConfiguration( request.getServletContext() );
-    ClientLtiConfigurationKey clientkey = state.getClientKey();
-    ClientLtiConfigurationImpl clientconfig = (ClientLtiConfigurationImpl)config.getClientLtiConfiguration( clientkey );
-    
-    // String toolid = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_name" );
-    // String tooltype = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_type" );
-    String toolid = clientconfig.getToolId();
-    String tooltype = clientconfig.getToolType();
+    String toolid = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_name" );
+    String tooltype = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_type" );
 
     ToolKey toolKey = new ToolKey( tooltype, toolid );
     Tool tool = toolManager.getTool( toolKey );
@@ -120,8 +115,6 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
       return;
     }
     
-    // What if we couldn't work out what to do?
-    // In this demo, send some debugging information in an HTML page.
     
     response.setContentType( "text/html;charset=UTF-8" );
     try (  PrintWriter out = response.getWriter() )
@@ -169,12 +162,101 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
         out.println( k + " = " + lticlaims.get( k ) + "\n" );
       out.println( "</pre>" );
       
-      
+
       out.println( "</body>" );
       out.println( "</html>" );
     }
   }
 
+  
+  /**
+   * The parent class calls this method after it has processed and validated 
+   * the deep linking request.  
+   * 
+   * @param lticlaims The validated LTI claims for this launch request.
+   * @param state The LTI state object.
+   * @param request The HTTP request.
+   * @param response The HTTP response.
+   * @throws ServletException If there is an internal problem forwarding the user's browser.
+   * @throws IOException If the network connection is broken while sending the forwarding response.
+   */
+  @Override
+  protected void processDeepLinkRequest( LtiClaims lticlaims, ToolSetLtiState state, HttpServletRequest request, HttpServletResponse response )
+          throws ServletException, IOException
+  {
+    logger.info( "Processing Deep Link Request" );
+    ToolCoordinator toolManager = ToolCoordinator.get( request.getServletContext() );
+    if ( toolManager == null ) { response.sendError( 500, "Cannot find tool manager." ); return; }
+    response.setContentType( "text/html;charset=UTF-8" );
+    try (  PrintWriter out = response.getWriter() )
+    {
+      /* TODO output your page here. You may use following sample code. */
+      out.println( "<!DOCTYPE html>" );
+      out.println( "<html>" );
+      out.println( "<head>" );
+      out.println( "<title>Servlet LaunchServlet</title>" );      
+      out.println( "<style>" );
+      out.println( "li { padding: 1em 1em 1em 1em; }" );
+      out.println( "</style>" );
+      out.println( "</head>" );
+      out.println( "<body>" );
+      out.println( "<h1>Servlet LaunchServlet at " + request.getContextPath() + "</h1>" );
+
+      out.println( "<p>Implementation of LTI 1.3 deep linking is not yet complete.</p> " );
+
+      out.println( "<h2>About the Launch Request</h2>" );
+      out.println( "<ul>" );
+      out.println( "<li>Tool platform guid<br/>" + lticlaims.getLtiToolPlatform().getGuid() + "</li>" );
+      out.println( "<li>Tool platform url<br/>"  + lticlaims.getLtiToolPlatform().getUrl()  + "</li>" );
+      out.println( "<li>Context label<br/>"      + lticlaims.getLtiContext().getLabel()     + "</li>" );
+      out.println( "<li>Context title<br/>"      + lticlaims.getLtiContext().getTitle()     + "</li>" );
+      String type = lticlaims.getLtiContext().getType( 0 );
+      if ( type != null )
+        out.println( "<li>Context type<br/>"     + type                        + "</li>" );
+      out.println( "</ul>" );
+            
+      out.println( "<h3>LTI Deep Linking Settings</h3>" );
+      LtiDeepLinkingSettings deep = lticlaims.getLtideeplinkingsettings();
+      if ( deep == null )
+        out.println( "No deep linking settings were in the request." );
+      else
+      {
+        out.println( "<ul>" );
+        out.println( "<li>Deep linking return URL:<br/>" + deep.getDeepLinkReturnUrl() + "</li>" );
+        for ( String atype : deep.getAcceptTypes() )
+          out.println( "<li>Accept Type:<br/>" + atype + "</li>" );        
+        for ( String ptype : deep.getAcceptPresentationDocumentTargets() )
+          out.println( "<li>Accept Presentation:<br/>" + ptype + "</li>" );        
+        for ( String mtype : deep.getAcceptMediaTypes() )
+          out.println( "<li>Accept Media Type:<br/>" + mtype + "</li>" );        
+        out.println( "</ul>" );    
+      }
+      
+      out.println( "<h3>LTI Claims</h3>" );
+      
+      out.println( "<pre>" );
+      ArrayList<String> keylist = new ArrayList<>();
+      for ( String k :  lticlaims.keySet() )
+        keylist.add( k );
+      keylist.sort( Comparator.comparing( String::toString ) );
+      for ( String k : keylist )
+        out.println( k + " = " + lticlaims.get( k ) + "\n" );
+      out.println( "</pre>" );
+      
+      StringBuilder sb = new StringBuilder();
+      sb.append( request.getContextPath() )
+        .append( "/deeplinking/index.jsp"  )   // TODO this should be configured by tool set implementation
+        .append( "?state_id="               )
+        .append( state.getId()              );
+      
+      out.println( "<h3>LTI Claims</h3>" );
+      out.println( "<p><a href=\"" + response.encodeRedirectURL( sb.toString() ) +"\">Go to resource selection page.</a></p>" );
+            
+      out.println( "</body>" );
+      out.println( "</html>" );
+    }
+  }
+  
   /**
    * This implementation ensures that the library code knows how to store
    * LTI state.

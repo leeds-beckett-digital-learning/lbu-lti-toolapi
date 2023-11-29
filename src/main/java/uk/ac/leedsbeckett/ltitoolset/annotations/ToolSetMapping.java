@@ -31,6 +31,13 @@ import java.lang.annotation.Target;
 public @interface ToolSetMapping
 {
   /**
+   * Name of the tool set.
+   * 
+   * @return The name
+   */
+  public String name();
+  
+  /**
    * Where in URL space, relative to the servlet context, where the standard 
    * login servlet will be placed.
    * 
