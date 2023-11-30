@@ -17,12 +17,17 @@ package uk.ac.leedsbeckett.ltitoolset.deeplinking;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
+import uk.ac.leedsbeckett.ltitoolset.Tool;
+import uk.ac.leedsbeckett.ltitoolset.ToolKey;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.page.PageSupport;
 
 /**
@@ -34,7 +39,8 @@ public class DeepLinkingPageSupport extends PageSupport
   static final Logger logger = Logger.getLogger( DeepLinkingPageSupport.class.getName() );
   
   protected ToolSetLtiState state;
-  protected Object dynamicPageData;
+  protected DeepLinkingLaunchState deepstate;
+  protected DeepLinkingPageData dynamicPageData;
   
   /**
    * The JSP will call this to initiate processing and then call the getter
@@ -57,14 +63,40 @@ public class DeepLinkingPageSupport extends PageSupport
     state = statestore.getState( stateid );
     if ( state == null )
       throw new ServletException( "State missing. " + stateid );    
+    deepstate = (DeepLinkingLaunchState) state.getToolLaunchState();
+    if ( deepstate == null )
+      throw new ServletException( "Deep state missing. " + stateid );
+    
+    dynamicPageData = new DeepLinkingPageData();
+    dynamicPageData.deepLinkReturnUrl = deepstate.deepLinkReturnUrl;
+    dynamicPageData.codedMessageCancel = deepstate.codedMessageCancel;
+    dynamicPageData.options = new ArrayList<>();
+    
+    HashMap<String,Object> map = new HashMap<>();
+    map.put( "title", "Cancel" );
+    dynamicPageData.options.add( map );
+    for ( ToolKey tk : toolCoordinator.getToolKeys() )
+    {
+      Tool tool = toolCoordinator.getTool( tk );
+      ToolMapping tm = toolCoordinator.getToolMapping( tk );
+      
+      map = new HashMap<>();
+      map.put( "title", tool.getTitle() );
+      map.put( "id", tm.id() );
+      map.put( "type", tm.type() );
+      dynamicPageData.options.add( map );
+    }
   }
 
   public String getDynamicPageDataAsJSON()
   {
+    logger.log( Level.SEVERE, "Getting dynamic page data." );
     try
     {
       ObjectMapper om = new ObjectMapper();
-      return om.writerWithDefaultPrettyPrinter().writeValueAsString( dynamicPageData );
+      String str = om.writerWithDefaultPrettyPrinter().writeValueAsString( dynamicPageData );
+      logger.log( Level.INFO, str );
+      return str;
     }
     catch ( JsonProcessingException ex )
     {

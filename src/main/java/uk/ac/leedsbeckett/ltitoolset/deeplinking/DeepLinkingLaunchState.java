@@ -16,16 +16,14 @@
 package uk.ac.leedsbeckett.ltitoolset.deeplinking;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.HashMap;
+import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 
 /**
  *
  * @author maber01
  */
-public class DeepLinkingPageData implements Serializable
+public class DeepLinkingLaunchState extends ToolLaunchState implements Serializable
 {
   public String deepLinkReturnUrl;
   public String codedMessageCancel;
-  public ArrayList<HashMap<String,Object>> options;
 }

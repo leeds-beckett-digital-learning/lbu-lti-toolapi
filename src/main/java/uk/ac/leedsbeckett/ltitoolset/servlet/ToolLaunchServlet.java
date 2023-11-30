@@ -32,6 +32,7 @@ import uk.ac.leedsbeckett.lti.claims.LtiDeepLinkingSettings;
 import uk.ac.leedsbeckett.lti.config.ClientLtiConfiguration;
 import uk.ac.leedsbeckett.lti.config.ClientLtiConfigurationKey;
 import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
+import uk.ac.leedsbeckett.lti.messages.LtiMessageDeepLinkingResponse;
 import uk.ac.leedsbeckett.lti.servlet.LtiLaunchServlet;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.Tool;
@@ -42,6 +43,7 @@ import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.config.ClientLtiConfigurationImpl;
 import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
+import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingLaunchState;
 
 
 /**
@@ -187,6 +189,41 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     logger.info( "Processing Deep Link Request" );
     ToolCoordinator toolManager = ToolCoordinator.get( request.getServletContext() );
     if ( toolManager == null ) { response.sendError( 500, "Cannot find tool manager." ); return; }
+    LtiDeepLinkingSettings deepsettings = lticlaims.getLtideeplinkingsettings();
+    if ( deepsettings == null ) { response.sendError( 500, "No LTI deep linking settings claim in the launch." ); return; }
+    
+    DeepLinkingLaunchState deepstate = new DeepLinkingLaunchState();
+    state.setToolLaunchState( deepstate );
+    deepstate.deepLinkReturnUrl = deepsettings.getDeepLinkReturnUrl();
+    
+    LtiMessageDeepLinkingResponse deepmessage = new LtiMessageDeepLinkingResponse( 
+            state, 
+            toolManager.getKeyId(), 
+            toolManager.getPrivateKey(),
+            toolManager.getPublicKey() );
+    
+    deepmessage.addClaim( "iss", state.getClientId() );
+    deepmessage.addClaim( "aud", lticlaims.getIssuer() );
+    deepmessage.addClaim( "exp", System.currentTimeMillis()+5000 );
+    deepmessage.addClaim( "iat", System.currentTimeMillis() );
+    deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/message_type", "LtiDeepLinkingResponse" );
+    deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/version", "1.3.0" );
+    deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/deployment_id", 
+           lticlaims.get( "https://purl.imsglobal.org/spec/lti/claim/deployment_id" ) );
+    deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/data", 
+           lticlaims.get( "https://purl.imsglobal.org/spec/lti-dl/claim/data" ) );
+    deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/content_items", new ArrayList() ); 
+    //deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/msg", "" );
+    //deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/log", "" );
+    deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/errormsg", "Sorry, deep linking implementation is not yet complete." );
+    deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/errorlog", "Under development." );
+
+    String base64 = deepmessage.build();
+    deepstate.codedMessageCancel = base64;
+    
+    getLtiStateStore( request.getServletContext() ).updateState( state );
+
+    
     response.setContentType( "text/html;charset=UTF-8" );
     try (  PrintWriter out = response.getWriter() )
     {
@@ -250,6 +287,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
         .append( state.getId()              );
       
       out.println( "<h3>LTI Claims</h3>" );
+      out.println( "<p><tt>" + base64 +"</tt></p>" );
       out.println( "<p><a href=\"" + response.encodeRedirectURL( sb.toString() ) +"\">Go to resource selection page.</a></p>" );
             
       out.println( "</body>" );

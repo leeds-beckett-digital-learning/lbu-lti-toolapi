@@ -24,11 +24,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Paths;
 import java.security.KeyPair;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -350,6 +352,16 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   }
   
   /**
+   * Get a list of the keys of all the tools.
+   * 
+   * @return A set of keys to the tools.
+   */
+  public Set<ToolKey> getToolKeys()
+  {
+    return this.toolMap.keySet();
+  }
+  
+  /**
    * Find a tool object based on a toolkey composed of type and name.
    * 
    * @param key The key.
@@ -489,15 +501,11 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     config.setDescription( "This description should be customised by the app." );
     config.setCustomParameters( customparams );
 
-    LtiToolConfigurationMessage[] messages = new LtiToolConfigurationMessage[2];
+    LtiToolConfigurationMessage[] messages = new LtiToolConfigurationMessage[1];
     messages[0] = new LtiToolConfigurationMessage();
-    messages[0].setType( "LtiResourceLink" );
+    messages[0].setType( "LtiDeepLinkingRequest" );
     messages[0].setTargetLinkUri( uribase + toolSetMapping.launchUrl() );
-    messages[0].setLabel( getToolSetName() );
-    messages[1] = new LtiToolConfigurationMessage();
-    messages[1].setType( "LtiDeepLinkingRequest" );
-    messages[1].setTargetLinkUri( uribase + toolSetMapping.launchUrl() );
-    messages[1].setLabel( getToolSetName() + " Deep Link" );
+    messages[0].setLabel( getToolSetName() + " Deep Link" );
     config.setMessages( messages );
     
     return toolreg;
@@ -638,6 +646,11 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   {
     if ( myJwks != null ) return myJwks;
     return "{\"keys\":[]}";
+  }
+  
+  public PublicKey getPublicKey()
+  {
+    return publicKey;
   }
   
   public PrivateKey getPrivateKey()
