@@ -25,6 +25,8 @@ import java.util.HashMap;
  */
 public class DeepLinkingPageData implements Serializable
 {
+  public String id;
+  public String courseid;
   public String deepLinkReturnUrl;
   public String codedMessageCancel;
   public ArrayList<HashMap<String,Object>> options;

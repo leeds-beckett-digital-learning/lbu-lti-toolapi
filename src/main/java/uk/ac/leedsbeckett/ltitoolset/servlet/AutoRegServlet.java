@@ -133,9 +133,6 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     // Set up an Lti Tool registration object
     LtiToolRegistration toolregin = toolCoord.createToolRegistration();
     
-    // Experimenting with 'random' domain
-    toolregin.getLtiToolConfiguration().setDomain( "doobeedoo" );
-    
     // Post it to the LTI tool consumer's configured registration endpoint
     // It should be sent back with some fields filled in.
     LtiToolRegistration toolregout = backchannel.postToolRegistration( consumerconfig.getRegistrationEndpoint(), token, toolregin );

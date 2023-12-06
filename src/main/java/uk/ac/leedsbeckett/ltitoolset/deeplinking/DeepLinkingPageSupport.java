@@ -23,7 +23,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import uk.ac.leedsbeckett.lti.messages.LtiMessageDeepLinkingResponse;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
+import uk.ac.leedsbeckett.lti.resourcelink.LtiResourceLink;
 import uk.ac.leedsbeckett.ltitoolset.Tool;
 import uk.ac.leedsbeckett.ltitoolset.ToolKey;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
@@ -63,27 +65,59 @@ public class DeepLinkingPageSupport extends PageSupport
     state = statestore.getState( stateid );
     if ( state == null )
       throw new ServletException( "State missing. " + stateid );    
-    deepstate = (DeepLinkingLaunchState) state.getToolLaunchState();
+    
+    
+    DeepLinkingLaunchState deepstate = (DeepLinkingLaunchState) state.getToolLaunchState();
     if ( deepstate == null )
       throw new ServletException( "Deep state missing. " + stateid );
-    
+        
     dynamicPageData = new DeepLinkingPageData();
+    dynamicPageData.id = state.getClientId();
     dynamicPageData.deepLinkReturnUrl = deepstate.deepLinkReturnUrl;
-    dynamicPageData.codedMessageCancel = deepstate.codedMessageCancel;
     dynamicPageData.options = new ArrayList<>();
     
     HashMap<String,Object> map = new HashMap<>();
     map.put( "title", "Cancel" );
     dynamicPageData.options.add( map );
+    
+    
     for ( ToolKey tk : toolCoordinator.getToolKeys() )
     {
       Tool tool = toolCoordinator.getTool( tk );
       ToolMapping tm = toolCoordinator.getToolMapping( tk );
       
+      LtiMessageDeepLinkingResponse deepmessage = new LtiMessageDeepLinkingResponse( 
+              toolCoordinator.getKeyId(), 
+              toolCoordinator.getPrivateKey(),
+              toolCoordinator.getPublicKey() );
+
+      deepmessage.addClaim( "iss", state.getClientId() );
+      deepmessage.addClaim( "aud", deepstate.platform_issuer );
+      deepmessage.addClaim( "exp", System.currentTimeMillis()/1000+5000 );
+      deepmessage.addClaim( "iat", System.currentTimeMillis()/1000 );
+      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/message_type", "LtiDeepLinkingResponse" );
+      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/version", "1.3.0" );
+      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/deployment_id", deepstate.deployment_id );
+      if ( deepstate.data != null )
+        deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/data", deepstate.data );
+      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/msg", "Request from LTI Tool to add deep link." );
+      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/log", "Request from LTI Tool to add deep link." );
+
+      ArrayList<LtiResourceLink> reslinks = new ArrayList<>();
+      LtiResourceLink reslink = new LtiResourceLink();
+      reslink.setTitle( tool.getTitle() );
+      reslink.setText( "Deep link text here." );
+      reslink.setUrl( toolCoordinator.getLaunchUrl() );
+      reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_name", tm.id() );
+      reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_type", tm.type() );
+      reslinks.add( reslink );
+      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/content_items", reslinks );       
+      
       map = new HashMap<>();
       map.put( "title", tool.getTitle() );
       map.put( "id", tm.id() );
       map.put( "type", tm.type() );
+      map.put( "jwt", deepmessage.build() );
       dynamicPageData.options.add( map );
     }
   }

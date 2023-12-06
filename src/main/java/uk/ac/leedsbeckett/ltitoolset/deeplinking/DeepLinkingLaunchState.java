@@ -16,6 +16,7 @@
 package uk.ac.leedsbeckett.ltitoolset.deeplinking;
 
 import java.io.Serializable;
+import uk.ac.leedsbeckett.lti.messages.LtiMessageDeepLinkingResponse;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 
 /**
@@ -24,6 +25,10 @@ import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
  */
 public class DeepLinkingLaunchState extends ToolLaunchState implements Serializable
 {
+  public String courseid;
   public String deepLinkReturnUrl;
-  public String codedMessageCancel;
+  
+  public String platform_issuer;
+  public Object deployment_id;
+  public Object data;
 }

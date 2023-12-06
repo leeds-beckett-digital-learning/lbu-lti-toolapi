@@ -478,6 +478,10 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     }
   }  
   
+  public String getLaunchUrl()
+  {
+    return "https://" + toolconfig.getHostName() + this.contextPath + toolSetMapping.launchUrl();
+  }
   
   public LtiToolRegistration createToolRegistration()
   {
