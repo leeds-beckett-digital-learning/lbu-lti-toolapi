@@ -196,7 +196,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     state.setToolLaunchState( deepstate );
     deepstate.deepLinkReturnUrl = deepsettings.getDeepLinkReturnUrl();
     deepstate.platform_issuer   = lticlaims.getIssuer();
-    deepstate.data              = lticlaims.get( "https://purl.imsglobal.org/spec/lti-dl/claim/data" );
+    deepstate.data              = deepsettings.getData();
     deepstate.deployment_id     = lticlaims.get( "https://purl.imsglobal.org/spec/lti/claim/deployment_id" );    
     getLtiStateStore( request.getServletContext() ).updateState( state );
 
