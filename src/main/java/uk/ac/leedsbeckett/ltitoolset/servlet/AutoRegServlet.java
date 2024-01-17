@@ -151,7 +151,7 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
       return;
     }
     
-    if ( secret.equals( regcon.getSecret() ) )
+    if ( !secret.equals( regcon.getSecret() ) )
     {
       resp.sendError( 500, "The secret code included in the registration request is incorrect." );
       return;

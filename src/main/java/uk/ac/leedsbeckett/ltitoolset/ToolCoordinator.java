@@ -54,6 +54,7 @@ import javax.websocket.Session;
 import javax.websocket.WebSocketContainer;
 import javax.websocket.server.ServerContainer;
 import org.apache.commons.lang3.StringUtils;
+import uk.ac.leedsbeckett.lti.claims.LtiClaims;
 import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
 import uk.ac.leedsbeckett.lti.registration.LtiToolConfiguration;
 import uk.ac.leedsbeckett.lti.registration.LtiToolConfigurationCustomParameters;
@@ -76,7 +77,9 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardConfigurat
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
+import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfigurationStore;
+import uk.ac.leedsbeckett.ltitoolset.config.RegistrationConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.config.RegistrationConfigurationStore;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.jwks.JwksStore;
@@ -419,6 +422,87 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   {
     registrationConfigurationStore = new RegistrationConfigurationStore( Paths.get( context.getRealPath( "/WEB-INF/registrations/" ) ) );
     platformConfigurationStore     = new PlatformConfigurationStore( Paths.get( context.getRealPath( "/WEB-INF/platforms/" ) ) );
+  }
+  
+  /** 
+   * Called after launch request has been validated.Allows tool set to veto specific
+ issuers or platform names.
+   * 
+   * @param lticlaims
+   * @param state
+   * @return 
+   * @throws uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException 
+   */
+  public boolean isPlatformAllowedLaunch( LtiClaims lticlaims, ToolSetLtiState state )
+          throws LaunchDisallowedException
+  {
+    return isPlatformAllowedLaunchOrDeepLink( lticlaims, state, false );
+  }
+  
+  /** 
+   * Called after launch request has been validated.Allows tool set to veto specific
+ issuers or platform names.
+   * 
+   * @param lticlaims
+   * @param state
+   * @return 
+   * @throws uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException 
+   */
+  public boolean isPlatformAllowedDeepLink( LtiClaims lticlaims, ToolSetLtiState state )
+          throws LaunchDisallowedException
+  {
+    return isPlatformAllowedLaunchOrDeepLink( lticlaims, state, true );
+  }
+  
+  /** 
+   * Called after launch request has been validated. Allows tool set to veto specific
+   * issuers or platform names.
+   * 
+   * @param lticlaims
+   * @param state
+   * @return If no exception thrown returns true
+   * @throws uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException 
+   */
+  private boolean isPlatformAllowedLaunchOrDeepLink( LtiClaims lticlaims, ToolSetLtiState state, boolean deeplink )
+          throws LaunchDisallowedException
+  {
+    if ( registrationConfigurationStore == null )
+      throw new LaunchDisallowedException( "No registration store available" );
+
+    String issuer = lticlaims.getIssuer();
+    
+    RegistrationConfiguration regconf = registrationConfigurationStore.getRegistrationConfiguration( issuer );
+    if ( regconf == null )
+      throw new LaunchDisallowedException( "No registration configuration found." );
+    
+    if ( !regconf.isRegistrationAllowed() )
+      throw new LaunchDisallowedException( "Registration entry says registration not allowed." );
+    
+    if ( deeplink && !regconf.isDeepLinkingAllowed() )
+      throw new LaunchDisallowedException( "Deep linking not allowed for this registered authorisation server." );
+    
+    if ( regconf.isAnyPlatformAllowed() )
+      return true;
+    
+    if ( platformConfigurationStore == null )
+      throw new LaunchDisallowedException( "No platform configuration store available." );
+
+    String platformname = null;
+    if ( lticlaims.getLtiToolPlatform() != null )
+      platformname = lticlaims.getLtiToolPlatform().getGuid();
+
+    if ( platformname == null )
+      throw new LaunchDisallowedException( deeplink?"No platform name provided in deep linking request.":"No platform name provided in launch request." );
+    
+    PlatformConfiguration platconf = platformConfigurationStore.getPlatformConfiguration( platformname );
+    if ( platconf == null )
+      throw new LaunchDisallowedException( "Specified platform no found in configuration store." );
+
+      
+    if ( !platconf.isLtiLaunchAllowed() )
+      throw new LaunchDisallowedException( "Platform is not allowed to run launches or deep linking requests." );
+    
+    return true;
   }
   
   /**

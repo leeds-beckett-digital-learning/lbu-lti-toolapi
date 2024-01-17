@@ -28,6 +28,7 @@ public class RegistrationConfiguration implements Serializable
   int status;
   String secret;
   boolean registrationAllowed;
+  boolean anyPlatformAllowed;
   boolean deepLinkingAllowed;
   boolean registered = false;
   
@@ -83,7 +84,15 @@ public class RegistrationConfiguration implements Serializable
     this.registrationAllowed = registrationAllowed;
   }
 
-  
+  public boolean isAnyPlatformAllowed()
+  {
+    return anyPlatformAllowed;
+  }
+
+  public void setAnyPlatformAllowed( boolean anyPlatformAllowed )
+  {
+    this.anyPlatformAllowed = anyPlatformAllowed;
+  }  
   
   public boolean isDeepLinkingAllowed()
   {

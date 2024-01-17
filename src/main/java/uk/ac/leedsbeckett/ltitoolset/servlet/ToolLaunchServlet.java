@@ -35,6 +35,7 @@ import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
 import uk.ac.leedsbeckett.lti.messages.LtiMessageDeepLinkingResponse;
 import uk.ac.leedsbeckett.lti.servlet.LtiLaunchServlet;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
+import uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException;
 import uk.ac.leedsbeckett.ltitoolset.Tool;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
 import uk.ac.leedsbeckett.ltitoolset.ToolKey;
@@ -76,7 +77,19 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     logger.info( "Processing Launch Request" );
     ToolCoordinator toolManager = ToolCoordinator.get( request.getServletContext() );
     if ( toolManager == null ) { response.sendError( 500, "Cannot find tool manager." ); return; }
-
+    
+    try
+    {
+      toolManager.isPlatformAllowedLaunch( lticlaims, state );
+    }
+    catch ( LaunchDisallowedException ex )
+    {
+      Logger.getLogger( ToolLaunchServlet.class.getName() ).log( Level.SEVERE, null, ex );
+      response.sendError( 500, "Launch request from " + lticlaims.getIssuer() + " has been disallowed by this tool's configuration. Reason: " + ex.getMessage() );
+      return;
+    }
+    
+    
     String toolid = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_name" );
     String tooltype = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_type" );
 
@@ -191,6 +204,19 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     if ( toolManager == null ) { response.sendError( 500, "Cannot find tool manager." ); return; }
     LtiDeepLinkingSettings deepsettings = lticlaims.getLtideeplinkingsettings();
     if ( deepsettings == null ) { response.sendError( 500, "No LTI deep linking settings claim in the launch." ); return; }
+
+    try
+    {
+      toolManager.isPlatformAllowedDeepLink( lticlaims, state );
+    }
+    catch ( LaunchDisallowedException ex )
+    {
+      Logger.getLogger( ToolLaunchServlet.class.getName() ).log( Level.SEVERE, null, ex );
+      response.sendError( 500, "Deep linking request from " + lticlaims.getIssuer() + " has been disallowed by this tool's configuration. Reason: " + ex.getMessage() );
+      return;
+    }
+    
+    
     
     DeepLinkingLaunchState deepstate = new DeepLinkingLaunchState();
     state.setToolLaunchState( deepstate );
