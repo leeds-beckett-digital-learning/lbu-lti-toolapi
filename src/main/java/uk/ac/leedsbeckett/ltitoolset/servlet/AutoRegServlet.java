@@ -15,16 +15,15 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.commons.lang3.StringUtils;
 import uk.ac.leedsbeckett.lti.config.ClientLtiConfigurationKey;
 import uk.ac.leedsbeckett.lti.registration.ConsumerConfiguration;
-import uk.ac.leedsbeckett.lti.registration.LtiToolConfigurationMessage;
 import uk.ac.leedsbeckett.lti.registration.LtiToolRegistration;
-import uk.ac.leedsbeckett.ltitoolset.Tool;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
-import uk.ac.leedsbeckett.ltitoolset.ToolKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelOwner;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiAutoRegistrationBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiAutoRegistrationBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.config.ClientLtiConfigurationImpl;
 import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
+import uk.ac.leedsbeckett.ltitoolset.config.RegistrationConfiguration;
+import uk.ac.leedsbeckett.ltitoolset.config.RegistrationConfigurationStore;
 
 /**
  *
@@ -59,7 +58,7 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     for ( int i=0; i<parts.length; i++ )
       logger.log(Level.INFO, "Path part {0} = {1}", new Object[]{i, parts[i]} );
     
-    if ( parts.length != 2 )
+    if ( parts.length < 2 )
     {
       resp.sendError( 404, "Invalid URL contains wrong number of elements in path." );
       return;
@@ -75,7 +74,13 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     switch ( action )
     {
       case "init":
-        actionInit( req, resp );
+        if ( parts.length < 3 )
+        {
+          resp.sendError( 404, "Invalid URL contains wrong number of elements in path." );
+          return;
+        }
+        String secret = parts[2];
+        actionInit( req, resp, secret );
         break;
       case "confirm":
         actionConfirm( req, resp );
@@ -87,13 +92,16 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     
   }
 
-  protected void actionInit( HttpServletRequest req, HttpServletResponse resp )
+  protected void actionInit( HttpServletRequest req, HttpServletResponse resp, String secret )
           throws ServletException, IOException
   {    
+    if ( secret  == null ) { resp.sendError( 500, "No secret code provided in registration request." ); return; }
     ToolCoordinator toolCoord  = ToolCoordinator.get( req.getServletContext() );
     if ( toolCoord  == null ) { resp.sendError( 500, "Cannot find tool manager." ); return; }
     
     LtiConfigurationImpl lticonfig = toolCoord.getLtiConfiguration();
+
+    RegistrationConfigurationStore regconstore = toolCoord.getRegistrationConfigurationStore();
     
     String openidcurl = req.getParameter( "openid_configuration" );
     logger.info( openidcurl );
@@ -129,6 +137,25 @@ public class AutoRegServlet extends HttpServlet implements BackchannelOwner
     // Dreadful bodge to fix "issuer" for Blackboard!!!!!
     if ( "https://developer.blackboard.com/".equals( consumerconfig.getIssuer() ) )
       consumerconfig.setIssuer( "https://blackboard.com" );
+    
+    RegistrationConfiguration regcon = regconstore.getRegistrationConfiguration( consumerconfig.getIssuer() );
+    if ( regcon == null )
+    {
+      resp.sendError( 500, "The authentication server that is attempting to register with this tool is not on the approved list." );
+      return;
+    }
+    
+    if ( !regcon.isRegistrationAllowed() )
+    {
+      resp.sendError( 500, "The authentication server that is attempting to register with this tool is not allowed to." );
+      return;
+    }
+    
+    if ( secret.equals( regcon.getSecret() ) )
+    {
+      resp.sendError( 500, "The secret code included in the registration request is incorrect." );
+      return;
+    }
     
     // Set up an Lti Tool registration object
     LtiToolRegistration toolregin = toolCoord.createToolRegistration();

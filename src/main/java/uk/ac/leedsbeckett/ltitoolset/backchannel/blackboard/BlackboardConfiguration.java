@@ -26,7 +26,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
-import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
 
 /**
  *
@@ -85,15 +84,15 @@ public class BlackboardConfiguration
     }
     catch ( FileNotFoundException ex )
     {
-      Logger.getLogger(ToolConfiguration.class.getName() ).log( Level.SEVERE, null, ex );
+      Logger.getLogger(BlackboardConfiguration.class.getName() ).log( Level.SEVERE, null, ex );
     }
     catch ( IOException ex )
     {
-      Logger.getLogger(ToolConfiguration.class.getName() ).log( Level.SEVERE, null, ex );
+      Logger.getLogger(BlackboardConfiguration.class.getName() ).log( Level.SEVERE, null, ex );
     }
     catch ( Throwable th )
     {
-      Logger.getLogger(ToolConfiguration.class.getName() ).log( Level.SEVERE, null, th );
+      Logger.getLogger(BlackboardConfiguration.class.getName() ).log( Level.SEVERE, null, th );
     }
   }
 }

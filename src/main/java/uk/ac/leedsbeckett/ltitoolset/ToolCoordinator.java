@@ -76,6 +76,8 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardConfigurat
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
+import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfigurationStore;
+import uk.ac.leedsbeckett.ltitoolset.config.RegistrationConfigurationStore;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.jwks.JwksStore;
 import uk.ac.leedsbeckett.ltitoolset.servlet.AutoRegServlet;
@@ -162,6 +164,9 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   private final HashMap<BackchannelKey,Backchannel> backchannelmap = new HashMap<>();
 
   private JwksStore jwksStore;
+
+  private PlatformConfigurationStore platformConfigurationStore;
+  private RegistrationConfigurationStore registrationConfigurationStore;
   
   /**
    * A service record in the META-INF resource of the API jar file fill ensure
@@ -205,6 +210,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     // other initialization stuff.
     initToolConfiguration( ctx );
     
+    initRegAndPlatformConfig( ctx );
     initJkwsStore( ctx );
     initLtiConfiguration( ctx );
     initLtiStateStore();
@@ -409,6 +415,12 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     return ltistatestore;
   }
   
+  private void initRegAndPlatformConfig( ServletContext context )
+  {
+    registrationConfigurationStore = new RegistrationConfigurationStore( Paths.get( context.getRealPath( "/WEB-INF/registrations/" ) ) );
+    platformConfigurationStore     = new PlatformConfigurationStore( Paths.get( context.getRealPath( "/WEB-INF/platforms/" ) ) );
+  }
+  
   /**
    * Load the LTI configuration file from a standard location.
    * 
@@ -426,7 +438,10 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     return jwksStore;
   }
   
-  
+  public RegistrationConfigurationStore getRegistrationConfigurationStore()
+  {
+    return registrationConfigurationStore;
+  }
   
   /**
    * Load the LTI configuration file from a standard location.
