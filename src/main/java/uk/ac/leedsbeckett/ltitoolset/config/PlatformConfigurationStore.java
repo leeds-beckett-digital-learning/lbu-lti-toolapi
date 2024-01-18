@@ -18,6 +18,7 @@ package uk.ac.leedsbeckett.ltitoolset.config;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import uk.ac.leedsbeckett.ltitoolset.store.Store;
 
@@ -25,7 +26,7 @@ import uk.ac.leedsbeckett.ltitoolset.store.Store;
  *
  * @author maber01
  */
-public class PlatformConfigurationStore extends Store<String,PlatformConfigurationEntry>
+public class PlatformConfigurationStore extends Store<PlatformConfigurationKey,PlatformConfigurationEntry>
 {
   static final Logger logger = Logger.getLogger(PlatformConfigurationStore.class.getName() );
 
@@ -37,15 +38,24 @@ public class PlatformConfigurationStore extends Store<String,PlatformConfigurati
     this.basepath = basepath;
   }  
   
-  public PlatformConfiguration getPlatformConfiguration( String key )
+  public PlatformConfiguration getPlatformConfigurationByGuid( String issuer, String platformGuid )
   {
+    PlatformConfigurationKey key = PlatformConfigurationKey.byIssuerAndPlatformGuid( issuer, platformGuid );
+    PlatformConfigurationEntry entry = this.get( key, false );
+    if ( entry == null ) return null;
+    return entry.getPlatformConfiguration();
+  }
+  
+  public PlatformConfiguration getPlatformConfigurationByUrl( String issuer, String platformUrl )
+  {
+    PlatformConfigurationKey key = PlatformConfigurationKey.byIssuerAndPlatformUrl( issuer, platformUrl );
     PlatformConfigurationEntry entry = this.get( key, false );
     if ( entry == null ) return null;
     return entry.getPlatformConfiguration();
   }
   
   @Override
-  public PlatformConfigurationEntry create( String key )
+  public PlatformConfigurationEntry create( PlatformConfigurationKey key )
   {
     return new PlatformConfigurationEntry( key );
   }
@@ -57,9 +67,11 @@ public class PlatformConfigurationStore extends Store<String,PlatformConfigurati
   }
 
   @Override
-  public Path getPath( String key )
+  public Path getPath( PlatformConfigurationKey key )
   {
-    return basepath.resolve( URLEncoder.encode( key, StandardCharsets.UTF_8 ) );
+    Path p = basepath.resolve( URLEncoder.encode( key.toString(), StandardCharsets.UTF_8 ) ); 
+    logger.log(Level.INFO, "Resolved key to path {0}", p.toString());
+    return p;
   }
 
 }

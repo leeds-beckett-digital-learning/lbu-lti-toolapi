@@ -23,53 +23,7 @@ import java.io.Serializable;
  */
 public class PlatformConfiguration implements Serializable
 {
-  String domain;
-  String issuer;
-  String displayName;
-  int status;
   boolean ltiLaunchAllowed;
-
-  public String getDomain()
-  {
-    return domain;
-  }
-
-  public void setDomain( String domain )
-  {
-    if ( this.domain != null )
-      throw new IllegalArgumentException( "Cannot change domain field of platform configuration." );
-    this.domain = domain;
-  }
-
-  public String getIssuer()
-  {
-    return issuer;
-  }
-
-  public void setIssuer( String issuer )
-  {
-    this.issuer = issuer;
-  }
-
-  public String getDisplayName()
-  {
-    return displayName;
-  }
-
-  public void setDisplayName( String displayName )
-  {
-    this.displayName = displayName;
-  }
-
-  public int getStatus()
-  {
-    return status;
-  }
-
-  public void setStatus( int status )
-  {
-    this.status = status;
-  }
 
   public boolean isLtiLaunchAllowed()
   {
@@ -80,5 +34,4 @@ public class PlatformConfiguration implements Serializable
   {
     this.ltiLaunchAllowed = ltiLaunchAllowed;
   }
-
 }

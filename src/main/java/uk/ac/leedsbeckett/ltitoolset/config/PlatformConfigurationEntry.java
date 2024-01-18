@@ -23,28 +23,29 @@ import uk.ac.leedsbeckett.ltitoolset.store.Entry;
  *
  * @author maber01
  */
-public class PlatformConfigurationEntry implements Entry<String>, Serializable
+public class PlatformConfigurationEntry implements Entry<PlatformConfigurationKey>, Serializable
 {
-  String url;  // use as key
+  PlatformConfigurationKey key;  // use as key
   long timeStamp;
   PlatformConfiguration platformConfiguration;
 
-  public PlatformConfigurationEntry( @JsonProperty("key") String url )
+  public PlatformConfigurationEntry( @JsonProperty("key") PlatformConfigurationKey key )
   {
-    this.url = url;
+    this.key = key;
   }
+  
   @Override
-  public String getKey()
+  public PlatformConfigurationKey getKey()
   {
-    return url;
+    return key;
   }
 
   @Override
-  public void setKey( String key )
+  public void setKey( PlatformConfigurationKey key )
   {
-    if ( this.url != null )
+    if ( this.key != null )
       throw new IllegalArgumentException( "Not allowed to change JwksEntry key." );
-    url = key;
+    this.key = key;
   }
 
   public long getTimeStamp()

@@ -487,17 +487,26 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     if ( platformConfigurationStore == null )
       throw new LaunchDisallowedException( "No platform configuration store available." );
 
-    String platformname = null;
+    String platformurl = null;
+    String platformguid = null;
     if ( lticlaims.getLtiToolPlatform() != null )
-      platformname = lticlaims.getLtiToolPlatform().getGuid();
+    {
+      platformurl = lticlaims.getLtiToolPlatform().getUrl();
+      platformguid = lticlaims.getLtiToolPlatform().getGuid();
+    }
 
-    if ( platformname == null )
-      throw new LaunchDisallowedException( deeplink?"No platform name provided in deep linking request.":"No platform name provided in launch request." );
+    if ( platformurl == null && platformguid == null )
+      throw new LaunchDisallowedException( deeplink?
+              "No platform url or guid provided in deep linking request.":
+              "No platform url or guid provided in launch request." );
     
-    PlatformConfiguration platconf = platformConfigurationStore.getPlatformConfiguration( platformname );
+    PlatformConfiguration platconf = platformConfigurationStore.getPlatformConfigurationByUrl( issuer, platformurl );
     if ( platconf == null )
-      throw new LaunchDisallowedException( "Specified platform no found in configuration store." );
-
+    {
+      platconf = platformConfigurationStore.getPlatformConfigurationByGuid( issuer, platformguid );
+      if ( platconf == null )
+        throw new LaunchDisallowedException( "Specified platform not found in configuration store." );
+    }
       
     if ( !platconf.isLtiLaunchAllowed() )
       throw new LaunchDisallowedException( "Platform is not allowed to run launches or deep linking requests." );
