@@ -54,7 +54,7 @@ public class LtiBackchannel extends Backchannel
     this.signingkey = signingkey;
   }
   
-  public synchronized OAuth2Token getPlatformAuthToken()
+  public synchronized OAuth2Token getPlatformAuthToken() throws IOException
   {
     if ( platformAuthToken != null )
       return platformAuthToken;
@@ -77,28 +77,20 @@ public class LtiBackchannel extends Backchannel
     String jwtstring = jwtbuilder.compact();
     logger.log(Level.INFO, "Compacted             = {0}", jwtstring );
     
-    try
+    // Call the the authorization server by backchannel using HTTP client.
+    // POST to url using form encoding and send these parameters
+    // grant_type = 'client_credentials'
+    // client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
+    // client_assertion = jwtstring
+    // scope = Hmmm...
+    JsonResult jresult = postAuthTokenRequest( authtokenurl, jwtstring );
+
+    if ( jresult.isSuccessful() )
     {
-      // Call the the authorization server by backchannel using HTTP client.
-      // POST to url using form encoding and send these parameters
-      // grant_type = 'client_credentials'
-      // client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
-      // client_assertion = jwtstring
-      // scope = Hmmm...
-      JsonResult jresult = postAuthTokenRequest( authtokenurl, jwtstring );
-      
-      if ( jresult.isSuccessful() )
-      {
-        platformAuthToken = (OAuth2Token)jresult.getResult();
-        return platformAuthToken;
-      }
-      return null;
+      platformAuthToken = (OAuth2Token)jresult.getResult();
+      return platformAuthToken;
     }
-    catch ( IOException ex )
-    {
-      logger.log( Level.SEVERE, "IOException while trying to fetch auth token.", ex );
-      return null;
-    }
+    throw new IOException( "Unable to fetch security token from the authorisation server.");
   }
   
   public JsonResult getNamesRoles() throws IOException
