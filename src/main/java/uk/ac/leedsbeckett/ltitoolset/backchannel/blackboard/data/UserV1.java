@@ -22,33 +22,14 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * @author maber01
  */
-@JsonIgnoreProperties({ "dataSourceId", "userName", "studentId", "educationLevel",
-                        "gender", "pronouns", "birthDate", "created", "modified",
-                        "lastLogin", "institutionRoleIds", "systemRoleIds",
-                        "availability", "job", "address", "locale",
-                        "avatar", "pronounciation", "pronounciationAudio"
-                      })
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class UserV1
 {
-  private final String id;
-  private final String uuid;
-  private final String externalId;
-  private final Name name;
-  private final Contact contact;
-
-  public UserV1( 
-          @JsonProperty( "id" )           String id, 
-          @JsonProperty( "uuid" )         String uuid, 
-          @JsonProperty( "externalId" )   String externalId, 
-          @JsonProperty( "name" )         Name name, 
-          @JsonProperty( "contact" )      Contact contact )
-  {
-    this.id = id;
-    this.uuid = uuid;
-    this.externalId = externalId;
-    this.name = name;
-    this.contact = contact;
-  }
+  @JsonProperty( "id" )         private final String id = null;
+  @JsonProperty( "uuid" )       private final String uuid = null;
+  @JsonProperty( "externalId" ) private final String externalId = null;
+  @JsonProperty( "name" )       private final Name name = null;
+  @JsonProperty( "contact" )    private final Contact contact = null;
 
   public String getId()
   {

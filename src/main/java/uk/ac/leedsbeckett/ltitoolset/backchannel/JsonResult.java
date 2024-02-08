@@ -74,6 +74,7 @@ public class JsonResult
     }
     
     this.rawValue = IOUtils.toString( response.getEntity().getContent(), this.contentCharset );
+    logger.log(Level.INFO, "Raw response: {0}", this.rawValue);
 
     // Try interpreting raw value as JSON regardless of content type.
     Class<?>[] expectedClasses = new Class<?>[3];

@@ -22,22 +22,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * @author maber01
  */
-@JsonIgnoreProperties({ "middle", "other", "suffix", "title" })
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class Name
 {
-  private final String given;
-  private final String family;
-  private final String preferredDisplayName;
-
-  public Name( 
-          @JsonProperty( "given" )                  String given, 
-          @JsonProperty( "family" )                 String family, 
-          @JsonProperty( "preferredDisplayName" )   String preferredDisplayName )
-  {
-    this.given = given;
-    this.family = family;
-    this.preferredDisplayName = preferredDisplayName;
-  }
+  @JsonProperty( "given" )                private final String given = null;
+  @JsonProperty( "family" )               private final String family = null;
+  @JsonProperty( "preferredDisplayName" ) private final String preferredDisplayName = null;
 
   public String getGiven()
   {

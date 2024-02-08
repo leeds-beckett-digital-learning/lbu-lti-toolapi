@@ -17,37 +17,21 @@ package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
 
 /**
  *
  * @author maber01
  */
-@JsonIgnoreProperties({ "user", "created", "modified", "availability", 
-                        "bypassCourseAvailabilityUntil", "lastAccessed" })
-public class CourseMembershipV1
+@JsonIgnoreProperties( ignoreUnknown = true )
+public class CourseMembershipV1 implements Serializable
 {
-  private final String id;
-  private final String userId;
-  private final String courseId;
-  private final String childCourseId;
-  private final String dataSourceId;
-  private final String courseRoleId;
-
-  public CourseMembershipV1( 
-          @JsonProperty( "id" )            String id, 
-          @JsonProperty( "userId" )        String userId, 
-          @JsonProperty( "courseId" )      String courseId, 
-          @JsonProperty( "childCourseId" ) String childCourseId, 
-          @JsonProperty( "dataSourceId" )  String dataSourceId, 
-          @JsonProperty( "courseRoleId" )  String courseRoleId )
-  {
-    this.id = id;
-    this.userId = userId;
-    this.courseId = courseId;
-    this.childCourseId = childCourseId;
-    this.dataSourceId = dataSourceId;
-    this.courseRoleId = courseRoleId;
-  }
+  @JsonProperty( "id" )            private final String id = null;
+  @JsonProperty( "userId" )        private final String userId = null;
+  @JsonProperty( "courseId" )      private final String courseId = null;
+  @JsonProperty( "childCourseId" ) private final String childCourseId = null;
+  @JsonProperty( "dataSourceId" )  private final String dataSourceId = null;
+  @JsonProperty( "courseRoleId" )  private final String courseRoleId = null;
 
   public String getId()
   {
@@ -77,6 +61,5 @@ public class CourseMembershipV1
   public String getCourseRoleId()
   {
     return courseRoleId;
-  }
-  
+  }  
 }

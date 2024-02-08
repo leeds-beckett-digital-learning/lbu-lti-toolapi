@@ -17,42 +17,22 @@ package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
 
 /**
  *
  * @author maber01
  */
-@JsonIgnoreProperties({ "created", "modified", "organization", "ultraStatus", 
-  "allowGuests", "allowObservers", "closedComplete", "availability", 
-  "enrollment", "locale", "hasChildren", "parentId", "externalAccessUrl", 
-  "guestAccessUrl" })
-public class CourseV2
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class CourseV2 implements Serializable
 {
-  private final String id;
-  private final String uuid;
-  private final String externalId;
-  private final String dataSourceId;
-  private final String courseId;
-  private final String name;
-  private final String description;
-
-  public CourseV2( 
-          @JsonProperty("id")           String id, 
-          @JsonProperty("uuid")         String uuid, 
-          @JsonProperty("externalId")   String externalId, 
-          @JsonProperty("dataSourceId") String dataSourceId, 
-          @JsonProperty("courseId")     String courseId, 
-          @JsonProperty("name")         String name, 
-          @JsonProperty("description")  String description )
-  {
-    this.id = id;
-    this.uuid = uuid;
-    this.externalId = externalId;
-    this.dataSourceId = dataSourceId;
-    this.courseId = courseId;
-    this.name = name;
-    this.description = description;
-  }
+  @JsonProperty("id")           private final String id = null;
+  @JsonProperty("uuid")         private final String uuid = null;
+  @JsonProperty("externalId")   private final String externalId = null;
+  @JsonProperty("dataSourceId") private final String dataSourceId = null;
+  @JsonProperty("courseId")     private final String courseId = null;
+  @JsonProperty("name")         private final String name = null;
+  @JsonProperty("description")  private final String description = null;
 
   public String getId()
   {
@@ -87,7 +67,5 @@ public class CourseV2
   public String getDescription()
   {
     return description;
-  }
-  
-  
+  }  
 }

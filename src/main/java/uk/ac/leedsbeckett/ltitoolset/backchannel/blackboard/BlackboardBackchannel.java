@@ -230,6 +230,7 @@ public class BlackboardBackchannel extends Backchannel
     }
     catch ( IOException ex )
     {
+      logger.log( Level.WARNING, "Unable to create course membership.", ex );
     }
     return null;
   }

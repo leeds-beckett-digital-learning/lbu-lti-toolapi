@@ -23,28 +23,13 @@ import java.io.Serializable;
  *
  * @author maber01
  */
-@JsonIgnoreProperties({ "created", "modified", "organization", "ultraStatus", 
-  "allowGuests", "allowObservers", "closedComplete", "availability", 
-  "enrollment", "locale", "hasChildren", "parentId", "externalAccessUrl", 
-  "guestAccessUrl" })
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CourseMembershipV1Input implements Serializable
 {
-  private final String childCourseId;
-  private final String dataSourceId;
-  private final Availability availability;
-  private final String courseRoleId;
-
-  public CourseMembershipV1Input( 
-          @JsonProperty("childCourseId") String childCourseId, 
-          @JsonProperty("dataSourceId")  String dataSourceId, 
-          @JsonProperty("availability")  Availability availability, 
-          @JsonProperty("courseRoleId")  String courseRoleId )
-  {
-    this.childCourseId = childCourseId;
-    this.dataSourceId = dataSourceId;
-    this.availability = availability;
-    this.courseRoleId = courseRoleId;
-  }
+  @JsonProperty("childCourseId") private final String childCourseId=null;
+  @JsonProperty("dataSourceId")  private final String dataSourceId=null;
+  @JsonProperty("availability")  private final Availability availability=null;
+  @JsonProperty("courseRoleId")  private final String courseRoleId=null;
 
   public String getChildCourseId()
   {

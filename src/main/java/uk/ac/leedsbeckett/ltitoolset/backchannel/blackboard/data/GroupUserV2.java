@@ -22,15 +22,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  *
  * @author maber01
  */
-@JsonIgnoreProperties({ "user" })
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class GroupUserV2
 {
-  private final String userId;
-
-  public GroupUserV2( @JsonProperty( "userId" ) String userId )
-  {
-    this.userId = userId;
-  }
+  @JsonProperty( "userId" ) private final String userId = null;
 
   public String getUserId()
   {

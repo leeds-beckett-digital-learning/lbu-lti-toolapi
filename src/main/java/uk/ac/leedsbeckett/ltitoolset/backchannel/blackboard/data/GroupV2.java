@@ -18,37 +18,22 @@ package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import java.io.Serializable;
 import org.apache.commons.lang3.StringUtils;
 
 /**
  *
  * @author maber01
  */
-@JsonIgnoreProperties({ "created", "modified", "availability", "enrollment" })
-public class GroupV2
+@JsonIgnoreProperties(ignoreUnknown = true)
+public class GroupV2 implements Serializable
 {
-  private final String id;
-  private final String uuid;
-  private final String externalId;
-  private final String groupSetId;
-  private final String name;
-  private final String description;
-
-  public GroupV2( 
-          @JsonProperty("id")           String id, 
-          @JsonProperty("uuid")         String uuid, 
-          @JsonProperty("externalId")   String externalId, 
-          @JsonProperty("groupSetId")   String groupSetId, 
-          @JsonProperty("name")         String name, 
-          @JsonProperty("description")  String description )
-  {
-    this.id = id;
-    this.uuid = uuid;
-    this.externalId = externalId;
-    this.groupSetId = groupSetId;
-    this.name = name;
-    this.description = description;
-  }
+  @JsonProperty("id")          private final String id = null;
+  @JsonProperty("uuid")        private final String uuid = null;
+  @JsonProperty("externalId")  private final String externalId = null;
+  @JsonProperty("groupSetId")  private final String groupSetId = null;
+  @JsonProperty("name")        private final String name = null;
+  @JsonProperty("description") private final String description = null;
 
   public String getId()
   {
