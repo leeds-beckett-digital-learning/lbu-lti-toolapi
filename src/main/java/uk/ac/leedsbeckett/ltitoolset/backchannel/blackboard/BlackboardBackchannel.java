@@ -105,6 +105,23 @@ public class BlackboardBackchannel extends Backchannel
     return null;
   }
   
+  /**
+   * Permissions:
+   * 
+   * To view disabled courses a user must have the entitlement 'system.course.VIEW'.
+   * Users with the 'course.configure-properties.EXECUTE' course entitlement, or 
+   * the 'system.course.properties.MODIFY' system entitlement can access all course properties.
+   * 
+   * system.org.properties.MODIFY for orgs.
+   * 
+   * 
+   * externalID is one of the properties that is invisible without extra permissions.
+   * 
+   * @param courseId
+   * @param org
+   * @param availability
+   * @return 
+   */
   public JsonResult getV3Courses( String courseId, boolean org, String availability )
   {
     if ( StringUtils.isBlank( courseId ) )
@@ -211,6 +228,28 @@ public class BlackboardBackchannel extends Backchannel
     return null;
   }
   
+  /**
+   * 
+   * Minimal entitlements required:
+   * For courses: 'system.enrollment.CREATE' with 'system.user.VIEW' or just 
+   * 'course.user-enroll.EXECUTE'
+   * For organizations: 'org.enrollment.CREATE' with 'system.user.VIEW' or just 
+   * 'course.user-enroll.EXECUTE'
+   * 
+   * For courses or organizations that have enabled self enrollment: 'system.generic.VIEW'
+   * If 'system.enrollment.CREATE' or 'org.enrollment.CREATE' are present, the 
+   * user must be in the same domain as the logged on user.
+   * 
+   * By default courseRoleId is Student and availability.available is Yes. 
+   * Providing different values for these fields requires extra entitlements:
+   * For courses:       'course.user-role.MODIFY' or 'course.user.MODIFY'
+   * For organizations: 'course.user-role.MODIFY' or 'org.user.MODIFY'
+   * 
+   * @param courseId
+   * @param userId
+   * @param cmi
+   * @return 
+   */
   public JsonResult putV1CourseMemberships( String courseId, String userId, CourseMembershipV1Input cmi )
   {
     if ( StringUtils.isBlank( courseId ) )
@@ -219,7 +258,7 @@ public class BlackboardBackchannel extends Backchannel
     OAuth2Token t = getAuthToken();
     String token = t.getAccessToken();
     String target = "https://" + platform + 
-            "/learn/api/public/v1/courses/externalId:" + courseId + "/users/uuid:" + userId;
+            "/learn/api/public/v1/courses/" + courseId + "/users/" + userId;
 
     ObjectMapper mapper = new ObjectMapper();
     try
