@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
@@ -26,14 +27,24 @@ import java.io.Serializable;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Contact implements Serializable
 {
-  @JsonProperty( "email" )            private final String email = null;
-  @JsonProperty( "institutionEmail" ) private final String institutionEmail = null;
+  private final String email;
+  private final String institutionEmail;
 
+  @JsonCreator
+  public Contact( @JsonProperty(value = "email",            required = true)  String email, 
+                  @JsonProperty(value = "institutionEmail", required = false) String institutionEmail )
+  {
+    this.email            = email;
+    this.institutionEmail = institutionEmail;
+  }
+  
+  @JsonProperty
   public String getEmail()
   {
     return email;
   }
 
+  @JsonProperty
   public String getInstitutionEmail()
   {
     return institutionEmail;

@@ -17,35 +17,64 @@ package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.io.Serializable;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 
 /**
- *
+ * 
  * @author maber01
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class CourseMembershipV1Input implements Serializable
+public class CourseMembershipV1Input
 {
-  @JsonProperty("childCourseId") private final String childCourseId=null;
-  @JsonProperty("dataSourceId")  private final String dataSourceId=null;
-  @JsonProperty("availability")  private final Availability availability=null;
-  @JsonProperty("courseRoleId")  private final String courseRoleId=null;
+  private final String childCourseId;
+  private final String dataSourceId;
+  private final Availability availability;
+  private final String courseRoleId;
 
+  /**
+   * Used to instantiate from Java code.
+   * 
+   * @param childCourseId The course the user should be in. (May not be a child)
+   * @param dataSourceId The datasource to link to the new data object
+   * @param availability The availability of the course to the new member.
+   * @param courseRoleId The role of the member.
+   */
+  @JsonCreator
+  public CourseMembershipV1Input( @JsonProperty(value = "childCourseId", required = true) String childCourseId, 
+                                  @JsonProperty(value = "dataSourceId",  required = true) String dataSourceId, 
+                                  @JsonProperty(value = "availability",  required = true) Availability availability, 
+                                  @JsonProperty(value = "courseRoleId",  required = true) String courseRoleId )
+  {
+    this.childCourseId = childCourseId;
+    this.dataSourceId = dataSourceId;
+    this.availability = availability;
+    this.courseRoleId = courseRoleId;
+  }
+
+  @JsonProperty
+  @JsonInclude( JsonInclude.Include.NON_NULL )
   public String getChildCourseId()
   {
     return childCourseId;
   }
 
+  @JsonProperty
+  @JsonInclude( JsonInclude.Include.NON_NULL )
   public String getDataSourceId()
   {
     return dataSourceId;
   }
 
+  @JsonProperty
+  @JsonInclude( JsonInclude.Include.NON_NULL )
   public Availability getAvailability()
   {
     return availability;
   }
 
+  @JsonProperty
+  @JsonInclude( JsonInclude.Include.NON_NULL )
   public String getCourseRoleId()
   {
     return courseRoleId;

@@ -24,7 +24,7 @@ import java.io.Serializable;
  * @author maber01
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class RestExceptionMessage implements Serializable
+public class RestExceptionMessage
 {
   private final String status;
   private final String code;
@@ -33,11 +33,11 @@ public class RestExceptionMessage implements Serializable
   private final String extraInfo;
 
   public RestExceptionMessage( 
-          @JsonProperty( "status" )           String status, 
-          @JsonProperty( "code" )             String code, 
-          @JsonProperty( "message" )          String message, 
-          @JsonProperty( "developerMessage" ) String developerMessage, 
-          @JsonProperty( "extraInfo" )        String extraInfo )
+          @JsonProperty( value="status",           required=true  ) String status, 
+          @JsonProperty( value="code",             required=false ) String code, 
+          @JsonProperty( value="message",          required=true  ) String message, 
+          @JsonProperty( value="developerMessage", required=false ) String developerMessage, 
+          @JsonProperty( value="extraInfo",        required=false ) String extraInfo )
   {
     this.status = status;
     this.code = code;
@@ -46,31 +46,33 @@ public class RestExceptionMessage implements Serializable
     this.extraInfo = extraInfo;
   }
 
-  
+  @JsonProperty
   public String getStatus()
   {
     return status;
   }
 
+  @JsonProperty
   public String getCode()
   {
     return code;
   }
 
+  @JsonProperty
   public String getMessage()
   {
     return message;
   }
 
+  @JsonProperty
   public String getDeveloperMessage()
   {
     return developerMessage;
   }
 
+  @JsonProperty
   public String getExtraInfo()
   {
     return extraInfo;
   }
-  
-  
 }

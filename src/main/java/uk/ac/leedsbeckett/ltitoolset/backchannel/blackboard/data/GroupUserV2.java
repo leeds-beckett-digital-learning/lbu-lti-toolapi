@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -25,8 +26,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class GroupUserV2
 {
-  @JsonProperty( "userId" ) private final String userId = null;
+  private final String userId;
 
+  @JsonCreator
+  public GroupUserV2( @JsonProperty(value = "userId", required = true) String userId )
+  {
+    this.userId = userId;
+  }
+
+  @JsonProperty 
   public String getUserId()
   {
     return userId;

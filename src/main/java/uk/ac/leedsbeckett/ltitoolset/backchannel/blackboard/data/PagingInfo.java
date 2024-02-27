@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
@@ -25,10 +26,17 @@ import java.io.Serializable;
  * @author maber01
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PagingInfo implements Serializable
+public class PagingInfo
 {
-  @JsonProperty("nextPage") private final String nextPage = null;
+  private final String nextPage;
 
+  @JsonCreator
+  public PagingInfo( @JsonProperty(value="nextPage",required=true) String nextPage )
+  {
+    this.nextPage = nextPage;
+  }
+
+  @JsonProperty
   public String getNextPage()
   {
     return nextPage;

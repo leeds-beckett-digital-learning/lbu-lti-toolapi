@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
@@ -28,16 +29,27 @@ import java.util.List;
  * @author maber01
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class GetCourseGroupUsersV2Results implements Serializable
+public class GetCourseGroupUsersV2Results
 {
-  @JsonProperty( "results" )    private final ArrayList<GroupUserV2> results = null;
-  @JsonProperty( "pagingInfo" ) private final PagingInfo pagingInfo = null;
+  @JsonProperty( "results" )    private final ArrayList<GroupUserV2> results;
+  @JsonProperty( "pagingInfo" ) private final PagingInfo pagingInfo;
 
+  @JsonCreator
+  public GetCourseGroupUsersV2Results( 
+          @JsonProperty(value = "results",    required = true ) ArrayList<GroupUserV2> results, 
+          @JsonProperty(value = "pagingInfo", required = false) PagingInfo pagingInfo )
+  {
+    this.results = results;
+    this.pagingInfo = pagingInfo;
+  }
+
+  @JsonProperty  
   public List<GroupUserV2> getResults()
   {
     return results;
   }
 
+  @JsonProperty
   public PagingInfo getPagingInfo()
   {
     return pagingInfo;

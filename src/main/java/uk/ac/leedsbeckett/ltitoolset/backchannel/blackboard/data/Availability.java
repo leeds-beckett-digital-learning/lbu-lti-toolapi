@@ -15,19 +15,26 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.io.Serializable;
 
 /**
  *
  * @author maber01
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Availability implements Serializable
+public class Availability
 {
-  @JsonProperty("available") private final String available = null;
+  private final String available;
 
+  @JsonCreator
+  public Availability( @JsonProperty(value = "available", required = true) String available )
+  {
+    this.available = available;
+  }
+
+  @JsonProperty
   public String getAvailable()
   {
     return available;

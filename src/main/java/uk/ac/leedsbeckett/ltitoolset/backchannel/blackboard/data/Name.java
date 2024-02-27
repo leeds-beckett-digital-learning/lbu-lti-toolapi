@@ -25,20 +25,33 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Name
 {
-  @JsonProperty( "given" )                private final String given = null;
-  @JsonProperty( "family" )               private final String family = null;
-  @JsonProperty( "preferredDisplayName" ) private final String preferredDisplayName = null;
+  private final String given;
+  private final String family;
+  private final String preferredDisplayName;
 
+  public Name( 
+          @JsonProperty( value = "given",                required = true ) String given, 
+          @JsonProperty( value = "family",               required = true ) String family, 
+          @JsonProperty( value = "preferredDisplayName", required = true ) String preferredDisplayName )
+  {
+    this.given = given;
+    this.family = family;
+    this.preferredDisplayName = preferredDisplayName;
+  }
+
+  @JsonProperty
   public String getGiven()
   {
     return given;
   }
 
+  @JsonProperty
   public String getFamily()
   {
     return family;
   }
 
+  @JsonProperty
   public String getPreferredDisplayName()
   {
     return preferredDisplayName;

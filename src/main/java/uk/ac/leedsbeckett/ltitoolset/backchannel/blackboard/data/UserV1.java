@@ -25,32 +25,50 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class UserV1
 {
-  @JsonProperty( "id" )         private final String id = null;
-  @JsonProperty( "uuid" )       private final String uuid = null;
-  @JsonProperty( "externalId" ) private final String externalId = null;
-  @JsonProperty( "name" )       private final Name name = null;
-  @JsonProperty( "contact" )    private final Contact contact = null;
+  private final String id;
+  private final String uuid;
+  private final String externalId;
+  private final Name name;
+  private final Contact contact;
 
+  public UserV1(  @JsonProperty( value="id",         required=true  ) String id,
+                  @JsonProperty( value="uuid",       required=true  ) String uuid,
+                  @JsonProperty( value="externalId", required=false ) String externalId,
+                  @JsonProperty( value="name",       required=false ) Name name,
+                  @JsonProperty( value="contact",    required=false ) Contact contact )
+  {
+    this.id = id;
+    this.uuid = uuid;
+    this.externalId = externalId;
+    this.name = name;
+    this.contact = contact;
+  }
+  
+  @JsonProperty
   public String getId()
   {
     return id;
   }
 
+  @JsonProperty
   public String getUuid()
   {
     return uuid;
   }
 
+  @JsonProperty
   public String getExternalId()
   {
     return externalId;
   }
 
+  @JsonProperty
   public Name getName()
   {
     return name;
   }
 
+  @JsonProperty
   public Contact getContact()
   {
     return contact;

@@ -15,55 +15,80 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.io.Serializable;
 
 /**
  *
  * @author maber01
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class CourseV2 implements Serializable
+public class CourseV2
 {
-  @JsonProperty("id")           private final String id = null;
-  @JsonProperty("uuid")         private final String uuid = null;
-  @JsonProperty("externalId")   private final String externalId = null;
-  @JsonProperty("dataSourceId") private final String dataSourceId = null;
-  @JsonProperty("courseId")     private final String courseId = null;
-  @JsonProperty("name")         private final String name = null;
-  @JsonProperty("description")  private final String description = null;
+  private final String id;
+  private final String uuid;
+  private final String externalId;
+  private final String dataSourceId;
+  private final String courseId;
+  private final String name;
+  private final String description;
 
+  @JsonCreator
+  public CourseV2( @JsonProperty(value = "id",           required = true ) String id, 
+                   @JsonProperty(value = "uuid",         required = false) String uuid, 
+                   @JsonProperty(value = "externalId",   required = false) String externalId, 
+                   @JsonProperty(value = "dataSourceId", required = false) String dataSourceId, 
+                   @JsonProperty(value = "courseId",     required = true ) String courseId, 
+                   @JsonProperty(value = "name",         required = true ) String name, 
+                   @JsonProperty(value = "description",  required = false) String description )
+  {
+    this.id = id;
+    this.uuid = uuid;
+    this.externalId = externalId;
+    this.dataSourceId = dataSourceId;
+    this.courseId = courseId;
+    this.name = name;
+    this.description = description;
+  }
+
+  @JsonProperty
   public String getId()
   {
     return id;
   }
 
+  @JsonProperty
   public String getUuid()
   {
     return uuid;
   }
-
+  
+  @JsonProperty
   public String getExternalId()
   {
     return externalId;
   }
 
+  @JsonProperty
   public String getDataSourceId()
   {
     return dataSourceId;
   }
 
+  @JsonProperty
   public String getCourseId()
   {
     return courseId;
   }
 
+  @JsonProperty
   public String getName()
   {
     return name;
   }
 
+  @JsonProperty
   public String getDescription()
   {
     return description;

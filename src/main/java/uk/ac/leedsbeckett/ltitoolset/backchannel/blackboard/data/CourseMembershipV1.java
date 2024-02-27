@@ -15,6 +15,7 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
@@ -24,40 +25,72 @@ import java.io.Serializable;
  * @author maber01
  */
 @JsonIgnoreProperties( ignoreUnknown = true )
-public class CourseMembershipV1 implements Serializable
+public class CourseMembershipV1
 {
-  @JsonProperty( "id" )            private final String id = null;
-  @JsonProperty( "userId" )        private final String userId = null;
-  @JsonProperty( "courseId" )      private final String courseId = null;
-  @JsonProperty( "childCourseId" ) private final String childCourseId = null;
-  @JsonProperty( "dataSourceId" )  private final String dataSourceId = null;
-  @JsonProperty( "courseRoleId" )  private final String courseRoleId = null;
+  private final String id;
+  private final String userId;
+  private final String courseId;
+  private final String childCourseId;
+  private final String dataSourceId;
+  private final String courseRoleId;
 
+  /**
+   * By default missing fields will be set to null by Jackson.
+   * 
+   * @param id The ID of the membership record.
+   * @param userId The ID of the user
+   * @param courseId The ID of the course which the child course belongs to. Could be null?
+   * @param childCourseId The course that the user is a member of.
+   * @param dataSourceId The dataSource that created the membership.
+   * @param courseRoleId The role of the user in the course.
+   */
+  @JsonCreator
+  public CourseMembershipV1( @JsonProperty(value = "id",            required = true)  String id, 
+                             @JsonProperty(value = "userId",        required = false) String userId, 
+                             @JsonProperty(value = "courseId",      required = false) String courseId, 
+                             @JsonProperty(value = "childCourseId", required = false) String childCourseId, 
+                             @JsonProperty(value = "dataSourceId",  required = false) String dataSourceId, 
+                             @JsonProperty(value = "courseRoleId",  required = false) String courseRoleId )
+  {
+    this.id = id;
+    this.userId = userId;
+    this.courseId = courseId;
+    this.childCourseId = childCourseId;
+    this.dataSourceId = dataSourceId;
+    this.courseRoleId = courseRoleId;
+  }
+  
+  @JsonProperty
   public String getId()
   {
     return id;
   }
 
+  @JsonProperty
   public String getUserId()
   {
     return userId;
   }
 
+  @JsonProperty
   public String getCourseId()
   {
     return courseId;
   }
 
+  @JsonProperty
   public String getChildCourseId()
   {
     return childCourseId;
   }
 
+  @JsonProperty
   public String getDataSourceId()
   {
     return dataSourceId;
   }
 
+  @JsonProperty
   public String getCourseRoleId()
   {
     return courseRoleId;

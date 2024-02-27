@@ -15,10 +15,10 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.io.Serializable;
 import org.apache.commons.lang3.StringUtils;
 
 /**
@@ -26,50 +26,71 @@ import org.apache.commons.lang3.StringUtils;
  * @author maber01
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class GroupV2 implements Serializable
+public class GroupV2
 {
-  @JsonProperty("id")          private final String id = null;
-  @JsonProperty("uuid")        private final String uuid = null;
-  @JsonProperty("externalId")  private final String externalId = null;
-  @JsonProperty("groupSetId")  private final String groupSetId = null;
-  @JsonProperty("name")        private final String name = null;
-  @JsonProperty("description") private final String description = null;
+  private final String id;
+  private final String uuid;
+  private final String externalId;
+  private final String groupSetId;
+  private final String name;
+  private final String description;
 
+  @JsonCreator
+  public GroupV2( 
+          @JsonProperty(value="id",          required = true  ) String id, 
+          @JsonProperty(value="uuid",        required = true  ) String uuid, 
+          @JsonProperty(value="externalId",  required = true  ) String externalId, 
+          @JsonProperty(value="groupSetId",  required = false ) String groupSetId, 
+          @JsonProperty(value="name",        required = true  ) String name, 
+          @JsonProperty(value="description", required = false ) String description )
+  {
+    this.id = id;
+    this.uuid = uuid;
+    this.externalId = externalId;
+    this.groupSetId = groupSetId;
+    this.name = name;
+    this.description = description;
+  }
+
+  @JsonProperty
   public String getId()
   {
     return id;
   }
 
+  @JsonProperty
   public String getUuid()
   {
     return uuid;
   }
 
+  @JsonProperty
   public String getExternalId()
   {
     return externalId;
   }
 
+  @JsonProperty
   public String getGroupSetId()
   {
     return groupSetId;
   }
 
-  @JsonIgnore
-  public boolean isInGroupSet()
-  {
-    return !StringUtils.isBlank( groupSetId );
-  }
-  
+  @JsonProperty
   public String getName()
   {
     return name;
   }
 
+  @JsonProperty
   public String getDescription()
   {
     return description;
   }
   
-  
+  @JsonIgnore
+  public boolean isInGroupSet()
+  {
+    return !StringUtils.isBlank( groupSetId );
+  }  
 }
