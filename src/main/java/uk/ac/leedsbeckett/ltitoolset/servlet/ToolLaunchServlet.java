@@ -224,6 +224,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     deepstate.platform_issuer   = lticlaims.getIssuer();
     deepstate.data              = deepsettings.getData();
     deepstate.deployment_id     = lticlaims.get( "https://purl.imsglobal.org/spec/lti/claim/deployment_id" );    
+    deepstate.rc                = lticlaims.getLtiRoles();
     getLtiStateStore( request.getServletContext() ).updateState( state );
 
     String sid = state.getId();

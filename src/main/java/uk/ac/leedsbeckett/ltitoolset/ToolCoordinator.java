@@ -426,12 +426,12 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   
   /** 
    * Called after launch request has been validated.Allows tool set to veto specific
- issuers or platform names.
+   *. issuers or platform names.
    * 
-   * @param lticlaims
-   * @param state
-   * @return 
-   * @throws uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException 
+   * @param lticlaims The incoming validated claims.
+   * @param state Our current tool set state.
+   * @return Is the requesting platform allowed to launch?
+   * @throws uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException Exception indicates reason for denial of access.
    */
   public boolean isPlatformAllowedLaunch( LtiClaims lticlaims, ToolSetLtiState state )
           throws LaunchDisallowedException
@@ -441,12 +441,12 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   
   /** 
    * Called after launch request has been validated.Allows tool set to veto specific
- issuers or platform names.
+   * issuers or platform names.
    * 
-   * @param lticlaims
-   * @param state
-   * @return 
-   * @throws uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException 
+   * @param lticlaims The incoming validated claims.
+   * @param state Our current tool set state.
+   * @return Is the requesting platform allowed to deep link?
+   * @throws uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException Exception indicates reason for denial of access.
    */
   public boolean isPlatformAllowedDeepLink( LtiClaims lticlaims, ToolSetLtiState state )
           throws LaunchDisallowedException

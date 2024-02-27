@@ -77,13 +77,16 @@ public class DeepLinkingPageSupport extends PageSupport
     dynamicPageData.options = new ArrayList<>();
     
     HashMap<String,Object> map = new HashMap<>();
-    map.put( "title", "Cancel" );
-    dynamicPageData.options.add( map );
+//    map.put( "title", "Cancel" );
+//    dynamicPageData.options.add( map );
     
     
     for ( ToolKey tk : toolCoordinator.getToolKeys() )
     {
       Tool tool = toolCoordinator.getTool( tk );
+      if ( !tool.allowDeepLink( deepstate ) )
+        continue;
+      
       ToolMapping tm = toolCoordinator.getToolMapping( tk );
       
       LtiMessageDeepLinkingResponse deepmessage = new LtiMessageDeepLinkingResponse( 

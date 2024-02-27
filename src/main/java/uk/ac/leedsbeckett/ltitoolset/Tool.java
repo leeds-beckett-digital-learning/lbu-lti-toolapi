@@ -20,6 +20,7 @@ import javax.servlet.ServletContext;
 import javax.websocket.server.ServerEndpoint;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
+import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
@@ -82,6 +83,8 @@ public abstract class Tool
       toolstate.setRelativeWebSocketUri( sb.toString() );
     }
   }
+  
+  public abstract boolean allowDeepLink( DeepLinkingLaunchState deepstate );
   
   public abstract Class<? extends ToolEndpoint> getEndpointClass();
   

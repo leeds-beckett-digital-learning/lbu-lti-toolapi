@@ -16,6 +16,7 @@
 package uk.ac.leedsbeckett.ltitoolset.deeplinking;
 
 import java.io.Serializable;
+import uk.ac.leedsbeckett.lti.claims.LtiRoleClaims;
 import uk.ac.leedsbeckett.lti.messages.LtiMessageDeepLinkingResponse;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 
@@ -31,4 +32,5 @@ public class DeepLinkingLaunchState extends ToolLaunchState implements Serializa
   public String platform_issuer;
   public Object deployment_id;
   public Object data;
+  public LtiRoleClaims rc;
 }
