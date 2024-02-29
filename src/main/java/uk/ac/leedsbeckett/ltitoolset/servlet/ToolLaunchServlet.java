@@ -216,6 +216,12 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
       return;
     }
     
+    LtiDeepLinkingSettings deep = lticlaims.getLtideeplinkingsettings();
+    if ( deep == null )
+    {
+      response.sendError( 500, "No deep linking settings were in the request." );
+      return;
+    }
     
     
     DeepLinkingLaunchState deepstate = new DeepLinkingLaunchState();
@@ -232,74 +238,12 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     if ( getLtiStateStore( request.getServletContext() ).getState( sid ) == null )
       logger.warning( "The state is not in the state store!" );
     
-    response.setContentType( "text/html;charset=UTF-8" );
-    try (  PrintWriter out = response.getWriter() )
-    {
-      /* TODO output your page here. You may use following sample code. */
-      out.println( "<!DOCTYPE html>" );
-      out.println( "<html>" );
-      out.println( "<head>" );
-      out.println( "<title>Servlet LaunchServlet</title>" );      
-      out.println( "<style>" );
-      out.println( "li { padding: 1em 1em 1em 1em; }" );
-      out.println( "</style>" );
-      out.println( "</head>" );
-      out.println( "<body>" );
-      out.println( "<h1>Servlet LaunchServlet at " + request.getContextPath() + "</h1>" );
-
-      out.println( "<p>Implementation of LTI 1.3 deep linking is not yet complete.</p> " );
-
-      out.println( "<h2>About the Launch Request</h2>" );
-      out.println( "<ul>" );
-      out.println( "<li>Tool platform guid<br/>" + lticlaims.getLtiToolPlatform().getGuid() + "</li>" );
-      out.println( "<li>Tool platform url<br/>"  + lticlaims.getLtiToolPlatform().getUrl()  + "</li>" );
-      out.println( "<li>Context label<br/>"      + lticlaims.getLtiContext().getLabel()     + "</li>" );
-      out.println( "<li>Context title<br/>"      + lticlaims.getLtiContext().getTitle()     + "</li>" );
-      String type = lticlaims.getLtiContext().getType( 0 );
-      if ( type != null )
-        out.println( "<li>Context type<br/>"     + type                        + "</li>" );
-      out.println( "</ul>" );
-            
-      out.println( "<h3>LTI Deep Linking Settings</h3>" );
-      LtiDeepLinkingSettings deep = lticlaims.getLtideeplinkingsettings();
-      if ( deep == null )
-        out.println( "No deep linking settings were in the request." );
-      else
-      {
-        out.println( "<ul>" );
-        out.println( "<li>Deep linking return URL:<br/>" + deep.getDeepLinkReturnUrl() + "</li>" );
-        for ( String atype : deep.getAcceptTypes() )
-          out.println( "<li>Accept Type:<br/>" + atype + "</li>" );        
-        for ( String ptype : deep.getAcceptPresentationDocumentTargets() )
-          out.println( "<li>Accept Presentation:<br/>" + ptype + "</li>" );        
-        for ( String mtype : deep.getAcceptMediaTypes() )
-          out.println( "<li>Accept Media Type:<br/>" + mtype + "</li>" );        
-        out.println( "</ul>" );    
-      }
-      
-      out.println( "<h3>LTI Claims</h3>" );
-      
-      out.println( "<pre>" );
-      ArrayList<String> keylist = new ArrayList<>();
-      for ( String k :  lticlaims.keySet() )
-        keylist.add( k );
-      keylist.sort( Comparator.comparing( String::toString ) );
-      for ( String k : keylist )
-        out.println( k + " = " + lticlaims.get( k ) + "\n" );
-      out.println( "</pre>" );
-      
-      StringBuilder sb = new StringBuilder();
-      sb.append( request.getContextPath() )
-        .append( "/deeplinking/index.jsp"  )   // TODO this should be configured by tool set implementation
-        .append( "?state_id="               )
-        .append( state.getId()              );
-      
-      out.println( "<h3>LTI Claims</h3>" );
-      out.println( "<p><a href=\"" + response.encodeRedirectURL( sb.toString() ) +"\">Go to resource selection page.</a></p>" );
-            
-      out.println( "</body>" );
-      out.println( "</html>" );
-    }
+    StringBuilder sb = new StringBuilder();
+    sb.append( request.getContextPath() )
+      .append( "/deeplinking/index.jsp"  )   // TODO this should be configured by tool set implementation
+      .append( "?state_id="              )
+      .append( state.getId()             );
+    response.sendRedirect( response.encodeRedirectURL( sb.toString() ) );
   }
   
   /**

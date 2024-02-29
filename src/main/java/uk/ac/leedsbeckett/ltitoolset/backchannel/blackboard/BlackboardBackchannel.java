@@ -117,10 +117,10 @@ public class BlackboardBackchannel extends Backchannel
    * 
    * externalID is one of the properties that is invisible without extra permissions.
    * 
-   * @param courseId
-   * @param org
-   * @param availability
-   * @return 
+   * @param courseId The ID of the course with optional type of ID prefix
+   * @param org      Search for 'organizations' (or courses by default.)
+   * @param availability If non-null narrow search to specific availability setting.
+   * @return The search results or an error object.
    */
   public JsonResult getV3Courses( String courseId, boolean org, String availability )
   {
@@ -245,10 +245,10 @@ public class BlackboardBackchannel extends Backchannel
    * For courses:       'course.user-role.MODIFY' or 'course.user.MODIFY'
    * For organizations: 'course.user-role.MODIFY' or 'org.user.MODIFY'
    * 
-   * @param courseId
-   * @param userId
-   * @param cmi
-   * @return 
+   * @param courseId The course ID
+   * @param userId The user ID
+   * @param cmi A course membership data object
+   * @return The result or an error object
    */
   public JsonResult putV1CourseMemberships( String courseId, String userId, CourseMembershipV1Input cmi )
   {
