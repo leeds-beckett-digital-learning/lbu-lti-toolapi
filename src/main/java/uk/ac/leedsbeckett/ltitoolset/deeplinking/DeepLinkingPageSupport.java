@@ -31,18 +31,20 @@ import uk.ac.leedsbeckett.ltitoolset.ToolKey;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.page.PageSupport;
+import uk.ac.leedsbeckett.ltitoolset.page.ToolPageSupport;
 
 /**
- *
+ * Note that this class comes from an LTI launch and therefore subclasses
+ * ToolPageSupport but there is no actual tool so it needs to do a little
+ * more work - e.g. build the right websocket URL.
+ * 
  * @author maber01
  */
-public class DeepLinkingPageSupport extends PageSupport
+public class DeepLinkingPageSupport extends ToolPageSupport<DeepLinkingPageData>
 {
   static final Logger logger = Logger.getLogger( DeepLinkingPageSupport.class.getName() );
   
-  protected ToolSetLtiState state;
   protected DeepLinkingLaunchState deepstate;
-  protected DeepLinkingPageData dynamicPageData;
   
   /**
    * The JSP will call this to initiate processing and then call the getter
@@ -56,29 +58,15 @@ public class DeepLinkingPageSupport extends PageSupport
   {
     super.setRequest( request );
     
-    String stateid = request.getParameter( "state_id" );
-    if ( stateid == null )
-      throw new ServletException( "State ID missing." );
-    LtiStateStore<ToolSetLtiState> statestore = this.toolCoordinator.getLtiStateStore();
-    if ( statestore == null )
-      throw new ServletException( "State store missing." );
-    state = statestore.getState( stateid );
-    if ( state == null )
-      throw new ServletException( "State missing. " + stateid );    
-    
-    
-    DeepLinkingLaunchState deepstate = (DeepLinkingLaunchState) state.getToolLaunchState();
+    deepstate = (DeepLinkingLaunchState) state.getToolLaunchState();
     if ( deepstate == null )
-      throw new ServletException( "Deep state missing. " + stateid );
-        
-    dynamicPageData = new DeepLinkingPageData();
+      throw new ServletException( "Deep state missing. " + state.getId() );
+   
+    // Correct the websocketuri because there is no 'Tool' with this page...
+    dynamicPageData.setWebSocketUri( this.getBaseUri() + "/socket/deeplinking?state=" + state.getId() );
     dynamicPageData.id = state.getClientId();
     dynamicPageData.deepLinkReturnUrl = deepstate.deepLinkReturnUrl;
-    dynamicPageData.options = new ArrayList<>();
     
-    HashMap<String,Object> map = new HashMap<>();
-//    map.put( "title", "Cancel" );
-//    dynamicPageData.options.add( map );
     
     
     for ( ToolKey tk : toolCoordinator.getToolKeys() )
@@ -86,7 +74,7 @@ public class DeepLinkingPageSupport extends PageSupport
       Tool tool = toolCoordinator.getTool( tk );
       if ( !tool.allowDeepLink( deepstate ) )
         continue;
-      
+    
       ToolMapping tm = toolCoordinator.getToolMapping( tk );
       
       LtiMessageDeepLinkingResponse deepmessage = new LtiMessageDeepLinkingResponse( 
@@ -114,14 +102,7 @@ public class DeepLinkingPageSupport extends PageSupport
       reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_name", tm.id() );
       reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_type", tm.type() );
       reslinks.add( reslink );
-      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/content_items", reslinks );       
-      
-      map = new HashMap<>();
-      map.put( "title", tool.getTitle() );
-      map.put( "id", tm.id() );
-      map.put( "type", tm.type() );
-      map.put( "jwt", deepmessage.build() );
-      dynamicPageData.options.add( map );
+      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/content_items", reslinks );             
     }
   }
 
@@ -141,4 +122,10 @@ public class DeepLinkingPageSupport extends PageSupport
       return "{}";
     }
   }  
+
+  @Override
+  public DeepLinkingPageData makeDynamicPageData()
+  {
+    return new DeepLinkingPageData();
+  }
 }

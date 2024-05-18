@@ -16,6 +16,7 @@
 
 package uk.ac.leedsbeckett.ltitoolset;
 
+import uk.ac.leedsbeckett.ltitoolset.resources.PlatformResourceKey;
 import java.io.Serializable;
 
 /**
@@ -33,7 +34,7 @@ public class ToolLaunchState implements Serializable
    * holds a unique key to the resource. The resources themselves are
    * put in a different cache.
    */
-  private ResourceKey resourceKey;
+  private PlatformResourceKey resourceKey;
   
   private String personId;
   private String personName;
@@ -41,12 +42,12 @@ public class ToolLaunchState implements Serializable
   private String courseTitle;
   private String relativeWebSocketUri;
 
-  public ResourceKey getResourceKey()
+  public PlatformResourceKey getResourceKey()
   {
     return resourceKey;
   }
 
-  public void setResourceKey( ResourceKey resourceKey )
+  public void setResourceKey( PlatformResourceKey resourceKey )
   {
     this.resourceKey = resourceKey;
   }

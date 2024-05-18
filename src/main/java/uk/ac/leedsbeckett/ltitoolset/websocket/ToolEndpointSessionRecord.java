@@ -23,16 +23,16 @@ import javax.websocket.Session;
  */
 public class ToolEndpointSessionRecord
 {
-  final ToolEndpoint endpoint;
+  final MultitonToolEndpoint endpoint;
   final Session session;
 
-  public ToolEndpointSessionRecord( ToolEndpoint endpoint, Session session )
+  public ToolEndpointSessionRecord( MultitonToolEndpoint endpoint, Session session )
   {
     this.endpoint = endpoint;
     this.session = session;
   }
 
-  public ToolEndpoint getEndpoint()
+  public MultitonToolEndpoint getEndpoint()
   {
     return endpoint;
   }

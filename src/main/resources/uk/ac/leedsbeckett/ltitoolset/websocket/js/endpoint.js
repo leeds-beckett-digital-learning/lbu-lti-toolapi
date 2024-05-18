@@ -80,9 +80,9 @@ const lbultitoolapi = (function () {
       this.socket.addEventListener( 'close', (event) => 
       {
         if ( event.wasClean )
-          alert( `Connection to service was closed with code = ${event.code} reason = ${event.reason}` );
+          console.log( `Connection to service was closed cleanly with code = ${event.code} reason = ${event.reason}` );
         else
-          alert( "Connection to service was closed abruptly." );
+          alert( `Connection to service was closed abruptly with code = ${event.code} reason = ${event.reason}` );
         this.socket = null;
       });
 
@@ -99,6 +99,11 @@ const lbultitoolapi = (function () {
         this.dispatchMessage( message );
       });
     };
+    
+    close()
+    {
+      socket.close();
+    }
 
     validateHandler()
     {

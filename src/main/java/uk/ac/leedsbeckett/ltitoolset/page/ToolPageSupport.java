@@ -19,12 +19,12 @@ package uk.ac.leedsbeckett.ltitoolset.page;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
 import static uk.ac.leedsbeckett.ltitoolset.page.PageSupport.logger;
-import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
  * This class logic for JSP pages that run in the context of LTI
@@ -35,6 +35,8 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
  */
 public abstract class ToolPageSupport<T extends DynamicPageData> extends PageSupport
 {
+  static final Logger logger = Logger.getLogger( ToolPageSupport.class.getName() );
+
   protected T dynamicPageData=null;
   
   
@@ -47,7 +49,7 @@ public abstract class ToolPageSupport<T extends DynamicPageData> extends PageSup
    * The JSP will call this to initiate processing and then call the getter
    * methods to retrieve outcomes of the processing.
    * 
-   * @param request The HttpRequest associated with the JSP's servlet.
+   * @param request The HttpRequest associated with the JSPs servlet.
    * @throws javax.servlet.ServletException Thrown to abort processing of the page request.
    */
   @Override
@@ -56,14 +58,17 @@ public abstract class ToolPageSupport<T extends DynamicPageData> extends PageSup
     super.setRequest( request );
     
     String stateid = request.getParameter( "state_id" );
+    logger.log(Level.FINE, "stateid {0}", stateid );
     if ( stateid == null )
       throw new ServletException( "State ID missing." );
     LtiStateStore<ToolSetLtiState> statestore = this.toolCoordinator.getLtiStateStore();
     if ( statestore == null )
       throw new ServletException( "State store missing." );
+    logger.log(Level.FINE, "State store available." );
     state = statestore.getState( stateid );
     if ( state == null )
       throw new ServletException( "State missing. " + stateid );
+    logger.log(Level.FINE, "Found state." );
     
     dynamicPageData=makeDynamicPageData();
     dynamicPageData.setMyId( state.getPersonId() );
@@ -71,25 +76,9 @@ public abstract class ToolPageSupport<T extends DynamicPageData> extends PageSup
     String uri = state.getToolLaunchState().getRelativeWebSocketUri();
     if ( uri != null )
       dynamicPageData.setWebSocketUri( getBaseUri() + uri );
+    logger.log(Level.FINE, "Done setting up ToolPageSupport." );
   }
   
-  /**
-   * If there is a websocket which will be used by the page, this method
-   * will calculate the URI of the endpoint based on the web application
-   * context and the Annotation of the endpoint.
-   * 
-   * @return The full URI of the websocket.
-   */
-  protected String getBaseUri()
-  {
-    StringBuilder sb = new StringBuilder();
-    sb.append( (request.isSecure()?"wss://":"ws://") );
-    sb.append( request.getServerName() );
-    sb.append( ":" );
-    sb.append( request.getServerPort() );
-    sb.append( request.getServletContext().getContextPath() );    
-    return sb.toString();
-  }
   
   public String getDynamicPageDataAsJSON()
   {

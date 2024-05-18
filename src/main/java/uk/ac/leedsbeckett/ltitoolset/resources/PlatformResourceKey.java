@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package uk.ac.leedsbeckett.ltitoolset;
+package uk.ac.leedsbeckett.ltitoolset.resources;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
@@ -26,7 +26,7 @@ import uk.ac.leedsbeckett.ltitoolset.util.TwoStringKey;
  * 
  * @author jon
  */
-public class ResourceKey extends TwoStringKey implements Serializable
+public class PlatformResourceKey extends TwoStringKey implements Serializable
 {
   /**
    * The standard constructor.
@@ -34,7 +34,7 @@ public class ResourceKey extends TwoStringKey implements Serializable
    * @param platformId Annotated to help with serialization as JSON.
    * @param resourceId Annotated to help with serialization as JSON.
    */
-  public ResourceKey( 
+  public PlatformResourceKey( 
           @JsonProperty("platformId") String platformId, 
           @JsonProperty("resourceId") String resourceId )
   {

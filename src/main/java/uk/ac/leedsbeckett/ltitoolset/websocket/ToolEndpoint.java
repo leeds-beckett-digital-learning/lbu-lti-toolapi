@@ -1,17 +1,6 @@
 /*
- * Copyright 2022 maber01.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
+ * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Class.java to edit this template
  */
 package uk.ac.leedsbeckett.ltitoolset.websocket;
 
@@ -27,28 +16,29 @@ import javax.websocket.Session;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
-import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelOwner;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
+import static uk.ac.leedsbeckett.ltitoolset.websocket.MultitonToolEndpoint.logger;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
 
 /**
- * A super class for tools to base endpoints on. Provides functionality to keep
- * track of handler methods and to dispatch messages to them.
+ * This is the superclass of all the web socket endpoint classes.
+ * Some old functionality has been pushed down to MultitonToolEndpoint
+ * because it is specific to tools that are multi-instantiated.
  * 
- * @author maber01
+ * @author jon
  */
 public abstract class ToolEndpoint implements BackchannelOwner
 {
-  static final Logger logger = Logger.getLogger( ToolEndpoint.class.getName() );
+  static final Logger logger = Logger.getLogger(ToolEndpoint.class.getName() );
 
   /**
    * A map of maps to keep track of handlers in implementations.
    */
   static final HashMap<Class<? extends ToolEndpoint>,HashMap<String,HandlerMethodRecord>> classHandlerMaps = new HashMap<>();
-  
-    
+
   /**
    * For a given sub-class of ToolEndpoint find a map of message names against handlers.
    * 
@@ -70,8 +60,7 @@ public abstract class ToolEndpoint implements BackchannelOwner
   }
   
   /**
-   * Use reflection and annotations to build a map of handlers for a specific
-   * subclass of ToolEndpoint.
+   * Use reflection and annotations to build a map of handlers for a specific subclass of ToolEndpoint.
    * 
    * @param clasz The specific class.
    * @return The map.
@@ -127,26 +116,19 @@ public abstract class ToolEndpoint implements BackchannelOwner
     return handlerMap;
   }
 
-
   String stateid;
   ToolSetLtiState state;
   ToolLaunchState toolState;
-  ToolCoordinator toolCoordinator;
-  
+  protected ToolCoordinator toolCoordinator;
+
   String platformHost;
   OAuth2Token platformAuthToken=null;
   
   
-  /**
-   * Default constructor for ToolEndpoint.
-   */
-  public ToolEndpoint()
-  {
-  }
 
   /**
    * After the endpoint is open, get the LTI state ID.
-   * 
+   *
    * @return The ID as string.
    */
   public String getStateid()
@@ -156,22 +138,22 @@ public abstract class ToolEndpoint implements BackchannelOwner
 
   /**
    * After the endpoint is open, get the LTI state object.
-   * 
+   *
    * @return The state.
    */
   public ToolSetLtiState getState()
   {
     return state;
   }
-
+  
   public ToolLaunchState getToolState()
   {
     return toolState;
-  }  
-  
+  }
+
   /**
    * Get the ToolCoordinator for the tool-set that this endpoint is working in.
-   * 
+   *
    * @return The ToolCoordinator instance.
    */
   public ToolCoordinator getToolCoordinator()
@@ -183,12 +165,12 @@ public abstract class ToolEndpoint implements BackchannelOwner
   {
     return platformHost;
   }
-  
+
   public Backchannel getBackchannel( BackchannelKey key )
   {
     return getToolCoordinator().getBackchannel( this, key, state );
   }
-  
+
   
   /**
    * Subclasses should call this first via super when their overriden onOpen method
@@ -201,16 +183,17 @@ public abstract class ToolEndpoint implements BackchannelOwner
   public void onOpen(Session session) throws IOException
   {
     toolCoordinator = ToolCoordinator.get( session.getContainer() );
+    // If it hasn't already been done for this class, map the handler methods.
+    getHandlerMap( this.getClass() );
     List<String> list = session.getRequestParameterMap().get( "state" );
     if ( list != null && list.size() == 1 )
       stateid = list.get( 0 );
     if ( stateid == null ) throw new IOException( "No state ID parameter provided in URL to web socket endpoint." );
     logger.log(Level.INFO, "State ID = {0}", stateid);
     state = toolCoordinator.getLtiStateStore().getState( stateid );
+    if ( state == null ) throw new IOException( "State not found for ID given in URL." );
     toolState = state.getToolLaunchState();
-    toolCoordinator.addWsSession( this, session );
-    // If it hasn't already been done for this class, map the handler methods.
-    getHandlerMap( this.getClass() );
+    if ( toolState == null ) throw new IOException( "Tool state not found in LTI state." );
     String platform = getState().getPlatformName();
     try
     {
@@ -222,7 +205,7 @@ public abstract class ToolEndpoint implements BackchannelOwner
       platformHost = null;
     }
   }
-  
+
   /**
    * Subclasses should call this from their own onClose method. Important to
    * call in order to keep track of endpoints that are currently accessing the
@@ -233,8 +216,7 @@ public abstract class ToolEndpoint implements BackchannelOwner
    */
   public void onClose(Session session) throws IOException
   {
-    getToolCoordinator().releaseBackchannels( this );
-    toolCoordinator.removeWsSession( this );
+    getToolCoordinator().releaseBackchannels( this );    
   }
 
   /**
@@ -260,8 +242,8 @@ public abstract class ToolEndpoint implements BackchannelOwner
 
     logger.log( Level.WARNING, "Did not find handler for message." );
   }
- 
-  
+
+
   /**
    * Takes an incoming message from the client end of the socket and
    * dispatches it to the right handler method using reflection.
@@ -316,7 +298,7 @@ public abstract class ToolEndpoint implements BackchannelOwner
     
     return true;
   }
-  
+
   public abstract void processHandlerAlert( Session session, HandlerAlertException haex ) throws IOException;
   
   
@@ -345,21 +327,6 @@ public abstract class ToolEndpoint implements BackchannelOwner
       s.getAsyncRemote().sendObject( tm );
     }
   }
-  
-  /**
-   * Find all the sessions that are current and relate to the same resource
-   * key as for this endpoint. Then send a copy of the message to each of them.
-   * Will include the client connected to the other end of this socket.
-   * 
-   * @param tm The message to send.
-   */
-  public void sendToolMessageToResourceUsers( ToolMessage tm )
-  {
-    for ( Session s : toolCoordinator.getWsSessionsForResource( toolState.getResourceKey() ) )
-    {
-      logger.info( "Telling a client." );
-      s.getAsyncRemote().sendObject( tm );
-    }
-  }
-  
+
+    
 }

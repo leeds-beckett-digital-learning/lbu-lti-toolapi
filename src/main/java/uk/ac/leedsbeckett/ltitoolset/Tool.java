@@ -15,22 +15,37 @@
  */
 package uk.ac.leedsbeckett.ltitoolset;
 
+import uk.ac.leedsbeckett.ltitoolset.resources.PlatformResourceKey;
 import java.lang.annotation.Annotation;
+import java.util.logging.Logger;
 import javax.servlet.ServletContext;
 import javax.websocket.server.ServerEndpoint;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolInformation;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
- * The interface that tools must implement.
+ * The class that tools must extend.
  * 
  * @author maber01
  */
 public abstract class Tool
 {
+  static final Logger logger = Logger.getLogger( Tool.class.getName() );
+
+  ToolInformation toolInformation = new ToolInformation();
+
   
+  /**
+   * The constructor needs to scan annotations to fill in tool information.
+   * Subclasses must not interfere with this.
+   */
+  public Tool()
+  {
+    toolInformation.scanTool( this );
+  }
+
   /**
    * All tool implementations are initalized with a ServletContext.
    * 
@@ -41,10 +56,7 @@ public abstract class Tool
   
   public String getTitle()
   {
-    ToolMapping[] mappings = this.getClass().getAnnotationsByType( ToolMapping.class );
-    if ( mappings.length == 0 )
-      return "LTI Tool";
-    return mappings[0].title();
+    return toolInformation.getTitle();
   }
   
   
@@ -70,7 +82,7 @@ public abstract class Tool
     toolstate.setPersonName( state.getPersonName() );
     toolstate.setCourseId( lticlaims.getLtiContext().getId() );
     toolstate.setCourseTitle( lticlaims.getLtiContext().getLabel() );
-    ResourceKey rk = new ResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
+    PlatformResourceKey rk = new PlatformResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
     toolstate.setResourceKey( rk );
     Annotation a = getEndpointClass().getAnnotation( ServerEndpoint.class );
     if ( a != null && a instanceof ServerEndpoint )
@@ -99,5 +111,10 @@ public abstract class Tool
   {
     return false;
   }
+
   
+  public final ToolInformation getToolInformation()
+  {
+    return toolInformation;
+  }
 }

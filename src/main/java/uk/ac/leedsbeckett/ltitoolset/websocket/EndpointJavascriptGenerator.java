@@ -20,6 +20,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import org.apache.commons.io.IOUtils;
@@ -180,9 +181,12 @@ public class EndpointJavascriptGenerator
     
     Reflections r = new Reflections( args[0] );
     Set<Class<? extends ToolEndpoint>> set = r.getSubTypesOf( ToolEndpoint.class );
-    // Each ToolEndpoint gets its own javascript file
     for ( Class<? extends ToolEndpoint> c : set )
     {
+      // Skip any abstract class that is just a superclass of a tool endpoint.
+      if ( Modifier.isAbstract( c.getModifiers() ) )
+        continue;
+      
       StringBuilder classes = new StringBuilder();
       System.out.println( "Processing " + c.getCanonicalName() );
       Annotation[] ejpanns  = c.getAnnotationsByType( EndpointJavascriptProperties.class );

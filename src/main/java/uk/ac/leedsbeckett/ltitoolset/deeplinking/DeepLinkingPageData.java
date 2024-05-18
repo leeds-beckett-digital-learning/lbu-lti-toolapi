@@ -18,16 +18,17 @@ package uk.ac.leedsbeckett.ltitoolset.deeplinking;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolInformation;
+import uk.ac.leedsbeckett.ltitoolset.page.DynamicPageData;
 
 /**
  *
  * @author maber01
  */
-public class DeepLinkingPageData implements Serializable
+public class DeepLinkingPageData extends DynamicPageData implements Serializable
 {
   public String id;
   public String courseid;
   public String deepLinkReturnUrl;
   public String codedMessageCancel;
-  public ArrayList<HashMap<String,Object>> options;
 }

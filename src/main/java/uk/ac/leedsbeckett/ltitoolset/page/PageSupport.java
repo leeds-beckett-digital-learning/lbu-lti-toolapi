@@ -70,4 +70,21 @@ public abstract class PageSupport
   {
     return importantmessage;
   }  
+
+  /**
+   * If there is a websocket which will be used by the page, this method
+   * will calculate the base of the URI in the servlet context.
+   *
+   * @return The base of the URI for the websocket.
+   */
+  protected String getBaseUri()
+  {
+    StringBuilder sb = new StringBuilder();
+    sb.append( request.isSecure() ? "wss://" : "ws://" );
+    sb.append( request.getServerName() );
+    sb.append( ":" );
+    sb.append( request.getServerPort() );
+    sb.append( request.getServletContext().getContextPath() );
+    return sb.toString();
+  }
 }
