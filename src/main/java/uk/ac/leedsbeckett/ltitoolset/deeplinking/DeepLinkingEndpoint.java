@@ -23,6 +23,9 @@ import uk.ac.leedsbeckett.ltitoolset.annotations.ToolInstantiationType;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.DeepLinkingOptions;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.DeepLinkingSelection;
+import uk.ac.leedsbeckett.ltitoolset.resources.ToolResourceKey;
+import uk.ac.leedsbeckett.ltitoolset.resources.ToolResourceRecord;
+import uk.ac.leedsbeckett.ltitoolset.resources.ToolResourceRecordEntry;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 import uk.ac.leedsbeckett.ltitoolset.websocket.HandlerAlertException;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessage;
@@ -148,24 +151,42 @@ public class DeepLinkingEndpoint extends ToolEndpoint
    * @throws uk.ac.leedsbeckett.ltitoolset.websocket.HandlerAlertException Indicates problem with handling the incoming message.
    */
   @EndpointMessageHandler()
-  public void handleGetJwt( Session session, ToolMessage message, DeepLinkingSelection selection )
+  public void handleMakeLink( Session session, ToolMessage message, DeepLinkingSelection selection )
           throws IOException, HandlerAlertException
   {
     ToolSetLtiState s = this.getState();
     if ( selection == null )
       throw new HandlerAlertException( "Cannot process null tool selection.", message.getId() );
+    if ( selection.getToolResourceId() != null )
+      throw new HandlerAlertException( "Deep linking to an existing resource is not supported.", message.getId() );
     if ( selection.getToolId() == null || selection.getToolType() == null )
       throw new HandlerAlertException( "Cannot process tool selection with null tool id or tool type.", message.getId() );
+    
+    
     Tool tool = toolCoordinator.getTool( selection.getToolType(), selection.getToolId() );
     if ( tool == null )
       throw new HandlerAlertException( "Unknown tool. id = " + selection.getToolId() + " type = " + selection.getToolType(), message.getId() );
     
-    // Validated input so now construct the DeepLinkingResponse message...
     if ( !tool.allowDeepLink( deepstate ) )
       throw new HandlerAlertException( "Selected tool doesn't support deep linking. id = " + selection.getToolId() + " type = " + selection.getToolType(), message.getId() );
 
-    ToolMapping tm = toolCoordinator.getToolMapping( selection.getToolType(), selection.getToolId() );
-
+    // Do we need to create a resource?
+    ToolResourceKey trkey = null;
+    if ( tool.getToolInformation().getInstantiationType() == ToolInstantiationType.MULTITON )
+    {
+      trkey = ToolResourceKey.generate();
+      ToolResourceRecord trr = new ToolResourceRecord( trkey.getResourceId() );
+      trr.setToolName( selection.getToolId() );
+      trr.setToolType( selection.getToolType() );
+      trr.setPlatformContext( null );
+      trr.setPlatformLinkingResource( null );
+      trr.setPlatformResource( null );
+      ToolResourceRecordEntry trentry = toolCoordinator.getToolResourceStore().get( trkey, true );
+      trentry.setRecord( trr );
+      toolCoordinator.getToolResourceStore().update( trentry );
+    }
+    
+    
     LtiMessageDeepLinkingResponse deepmessage = new LtiMessageDeepLinkingResponse( 
             toolCoordinator.getKeyId(), 
             toolCoordinator.getPrivateKey(),
@@ -188,14 +209,17 @@ public class DeepLinkingEndpoint extends ToolEndpoint
     reslink.setTitle( tool.getTitle() );
     reslink.setText( selection.getResourceTitle() );
     reslink.setUrl( toolCoordinator.getLaunchUrl() );
-    reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_name", tm.id() );
-    reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_type", tm.type() );
+    reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_name", selection.getToolId() );
+    reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_type", selection.getToolType() );
+    if ( trkey != null )
+      reslink.putCustom( "digles.leedsbeckett.ac.uk#resource_id", trkey.getResourceId() );
     reslinks.add( reslink );
     deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/content_items", reslinks );       
 
     String jwt = deepmessage.build();
     sendToolMessage( session, new ToolMessage( message.getId(), DeepServerMessageName.Jwt, jwt ) );    
   }
+
   
   @Override
   public void processHandlerAlert( Session session, HandlerAlertException haex )

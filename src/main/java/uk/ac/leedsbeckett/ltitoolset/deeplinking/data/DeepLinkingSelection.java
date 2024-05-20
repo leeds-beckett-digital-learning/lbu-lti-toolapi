@@ -17,6 +17,8 @@ public class DeepLinkingSelection
   final String toolId;
   final String toolType;
   final String resourceTitle;
+  
+  final String toolResourceId;
 
   /**
    * Construct object from properties.
@@ -24,15 +26,19 @@ public class DeepLinkingSelection
    * @param toolId The ID of the tool
    * @param toolType The type of the tool
    * @param resourceTitle The title of the new resource
+   * @param toolResourceId The ID of an existing resource
    */
   public DeepLinkingSelection( 
           @JsonProperty("toolId") String toolId, 
-           @JsonProperty("toolType") String toolType, 
-            @JsonProperty("toolResourceTitle") String resourceTitle )
+          @JsonProperty("toolType") String toolType, 
+          @JsonProperty("toolResourceTitle") String resourceTitle,
+          @JsonProperty("toolResourceId") String toolResourceId
+          )
   {
     this.toolId = toolId;
     this.toolType = toolType;
     this.resourceTitle = resourceTitle;
+    this.toolResourceId = toolResourceId;
   }
 
   /**
@@ -60,5 +66,14 @@ public class DeepLinkingSelection
   public String getResourceTitle()
   {
     return resourceTitle;
+  }
+
+  /**
+   * Standard POJO getter
+   * @return The ID of an existing resource.
+   */
+  public String getToolResourceId()
+  {
+    return toolResourceId;
   }
 }

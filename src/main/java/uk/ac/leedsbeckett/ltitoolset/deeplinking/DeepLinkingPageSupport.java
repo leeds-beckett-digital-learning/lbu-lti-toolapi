@@ -61,51 +61,10 @@ public class DeepLinkingPageSupport extends ToolPageSupport<DeepLinkingPageData>
     deepstate = (DeepLinkingLaunchState) state.getToolLaunchState();
     if ( deepstate == null )
       throw new ServletException( "Deep state missing. " + state.getId() );
-   
-    // Correct the websocketuri because there is no 'Tool' with this page...
-    dynamicPageData.setWebSocketUri( this.getBaseUri() + "/socket/deeplinking?state=" + state.getId() );
-    dynamicPageData.id = state.getClientId();
     dynamicPageData.deepLinkReturnUrl = deepstate.deepLinkReturnUrl;
-    
-    
-    
-    for ( ToolKey tk : toolCoordinator.getToolKeys() )
-    {
-      Tool tool = toolCoordinator.getTool( tk );
-      if ( !tool.allowDeepLink( deepstate ) )
-        continue;
-    
-      ToolMapping tm = toolCoordinator.getToolMapping( tk );
-      
-      LtiMessageDeepLinkingResponse deepmessage = new LtiMessageDeepLinkingResponse( 
-              toolCoordinator.getKeyId(), 
-              toolCoordinator.getPrivateKey(),
-              toolCoordinator.getPublicKey() );
-
-      deepmessage.addClaim( "iss", state.getClientId() );
-      deepmessage.addClaim( "aud", deepstate.platform_issuer );
-      deepmessage.addClaim( "exp", System.currentTimeMillis()/1000+5000 );
-      deepmessage.addClaim( "iat", System.currentTimeMillis()/1000 );
-      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/message_type", "LtiDeepLinkingResponse" );
-      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/version", "1.3.0" );
-      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti/claim/deployment_id", deepstate.deployment_id );
-      if ( deepstate.data != null )
-        deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/data", deepstate.data );
-      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/msg", "Request from LTI Tool to add deep link." );
-      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/log", "Request from LTI Tool to add deep link." );
-
-      ArrayList<LtiResourceLink> reslinks = new ArrayList<>();
-      LtiResourceLink reslink = new LtiResourceLink();
-      reslink.setTitle( tool.getTitle() );
-      reslink.setText( "Deep link text here." );
-      reslink.setUrl( toolCoordinator.getLaunchUrl() );
-      reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_name", tm.id() );
-      reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_type", tm.type() );
-      reslinks.add( reslink );
-      deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/content_items", reslinks );             
-    }
   }
 
+  @Override
   public String getDynamicPageDataAsJSON()
   {
     logger.log( Level.SEVERE, "Getting dynamic page data." );

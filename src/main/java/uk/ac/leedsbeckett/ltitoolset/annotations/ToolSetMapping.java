@@ -67,4 +67,11 @@ public @interface ToolSetMapping
    * @return The URL.
    */
   public String autoRegUrl();
+
+  /**
+   * The URL of the deep linking JSP page.
+   * 
+   * @return The URL.
+   */
+  public String deepLinkingUrl();
 }

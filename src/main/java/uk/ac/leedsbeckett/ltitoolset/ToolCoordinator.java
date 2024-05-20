@@ -85,6 +85,7 @@ import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfigurationStore;
 import uk.ac.leedsbeckett.ltitoolset.config.RegistrationConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.config.RegistrationConfigurationStore;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
+import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingTool;
 import uk.ac.leedsbeckett.ltitoolset.jwks.JwksStore;
 import uk.ac.leedsbeckett.ltitoolset.resources.ToolResourceStore;
 import uk.ac.leedsbeckett.ltitoolset.servlet.AutoRegServlet;
@@ -176,6 +177,8 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   private RegistrationConfigurationStore registrationConfigurationStore;
 
   private ToolResourceStore toolResourceStore;
+  private DeepLinkingTool deepLinkingTool = new DeepLinkingTool();
+  
   
   /**
    * A service record in the META-INF resource of the API jar file fill ensure
@@ -374,6 +377,22 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   public Set<ToolKey> getToolKeys()
   {
     return this.toolMap.keySet();
+  }
+  
+  
+  /**
+   * Get the deep linking tool.
+   * 
+   * @return The deep linking tool
+   */
+  public DeepLinkingTool getDeepLinkingTool()
+  {
+    return deepLinkingTool;
+  }
+  
+  public String getDeepLinkingUrl()
+  {
+    return toolSetMapping.deepLinkingUrl();
   }
   
   /**

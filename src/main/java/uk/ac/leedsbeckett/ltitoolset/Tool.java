@@ -82,8 +82,11 @@ public abstract class Tool
     toolstate.setPersonName( state.getPersonName() );
     toolstate.setCourseId( lticlaims.getLtiContext().getId() );
     toolstate.setCourseTitle( lticlaims.getLtiContext().getLabel() );
-    PlatformResourceKey rk = new PlatformResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
-    toolstate.setResourceKey( rk );
+    if ( state.getPlatformName() != null && lticlaims.getLtiResource() != null )
+    {
+      PlatformResourceKey rk = new PlatformResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
+      toolstate.setResourceKey( rk );
+    }
     Annotation a = getEndpointClass().getAnnotation( ServerEndpoint.class );
     if ( a != null && a instanceof ServerEndpoint )
     {
