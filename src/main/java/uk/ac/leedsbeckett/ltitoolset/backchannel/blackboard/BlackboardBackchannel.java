@@ -68,6 +68,7 @@ public class BlackboardBackchannel extends Backchannel
     try
     {
       String url = "https://" + platform + "/learn/api/public/v1/oauth2/token";
+      logger.log(Level.FINE, "getAuthToken() {0} with {1}", new Object[ ]{url, username});
       JsonResult jresult = this.postBlackboardRestTokenRequest( url, username, password );
       
       if ( jresult.isSuccessful() )

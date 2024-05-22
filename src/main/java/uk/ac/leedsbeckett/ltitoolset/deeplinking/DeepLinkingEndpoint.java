@@ -133,9 +133,8 @@ public class DeepLinkingEndpoint extends ToolEndpoint
     for ( ToolKey tk :toolCoordinator.getToolKeys() )
     {
       Tool tool = toolCoordinator.getTool( tk );
-//      if ( !tool.allowDeepLink( deepstate ) )
-//        continue;
-      options.addToolInformation( tool.getToolInformation() );
+      if ( tool.allowDeepLink( deepstate ) )
+        options.addToolInformation( tool.getToolInformation() );
     }    
     sendToolMessage( session, new ToolMessage( message.getId(), DeepServerMessageName.Options, options ) );    
   }  
