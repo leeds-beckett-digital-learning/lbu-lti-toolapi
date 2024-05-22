@@ -93,8 +93,9 @@ public abstract class Tool
       ServerEndpoint se = (ServerEndpoint)a;
       StringBuilder sb = new StringBuilder();
       sb.append( se.value() );
-      sb.append( "?state=" );
+      sb.append( "?state_id=" );
       sb.append( state.getId() );
+      // The nonce isn't added here because we don't know the right one yet.
       toolstate.setRelativeWebSocketUri( sb.toString() );
     }
   }

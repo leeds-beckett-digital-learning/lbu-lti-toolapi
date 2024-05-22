@@ -30,10 +30,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
 import uk.ac.leedsbeckett.lti.claims.LtiDeepLinkingSettings;
-import uk.ac.leedsbeckett.lti.config.ClientLtiConfiguration;
-import uk.ac.leedsbeckett.lti.config.ClientLtiConfigurationKey;
 import uk.ac.leedsbeckett.lti.config.LtiConfiguration;
-import uk.ac.leedsbeckett.lti.messages.LtiMessageDeepLinkingResponse;
 import uk.ac.leedsbeckett.lti.servlet.LtiLaunchServlet;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException;
@@ -43,8 +40,6 @@ import uk.ac.leedsbeckett.ltitoolset.ToolKey;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
-import uk.ac.leedsbeckett.ltitoolset.config.ClientLtiConfigurationImpl;
-import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingTool;
 
@@ -118,7 +113,9 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     sb.append( request.getContextPath() )
       .append( toolMapping.launchURI()  )
       .append( "?state_id="             )
-      .append( state.getId()            );
+      .append( state.getId()            )
+      .append( "&nonce="                )
+      .append( state.getNonce()         );
     response.sendRedirect( response.encodeRedirectURL( sb.toString() ) );
   }
 
@@ -171,7 +168,9 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     sb.append( request.getContextPath()        )
       .append( toolManager.getDeepLinkingUrl() )
       .append( "?state_id="                    )
-      .append( state.getId()                   );
+      .append( state.getId()                   )
+      .append( "&nonce="                       )
+      .append( state.getNonce()                );
     response.sendRedirect( response.encodeRedirectURL( sb.toString() ) );
   }
 

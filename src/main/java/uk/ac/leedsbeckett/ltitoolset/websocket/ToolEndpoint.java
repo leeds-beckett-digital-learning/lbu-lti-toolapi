@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.websocket.Session;
+import uk.ac.leedsbeckett.lti.LtiException;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
@@ -185,12 +186,28 @@ public abstract class ToolEndpoint implements BackchannelOwner
     toolCoordinator = ToolCoordinator.get( session.getContainer() );
     // If it hasn't already been done for this class, map the handler methods.
     getHandlerMap( this.getClass() );
-    List<String> list = session.getRequestParameterMap().get( "state" );
+    List<String> list = session.getRequestParameterMap().get( "state_id" );
     if ( list != null && list.size() == 1 )
       stateid = list.get( 0 );
     if ( stateid == null ) throw new IOException( "No state ID parameter provided in URL to web socket endpoint." );
     logger.log(Level.INFO, "State ID = {0}", stateid);
-    state = toolCoordinator.getLtiStateStore().getState( stateid );
+
+    String claimedNonce=null;
+    list = session.getRequestParameterMap().get( "nonce" );
+    if ( list != null && list.size() == 1 )
+      claimedNonce = list.get( 0 );
+    if ( claimedNonce == null ) throw new IOException( "No nonce parameter provided in URL to web socket endpoint." );
+    logger.log(Level.INFO, "Claimed nonce = {0}", claimedNonce );
+    
+    try
+    {
+      state = toolCoordinator.getLtiStateStore().getState( stateid, claimedNonce );
+    }
+    catch ( LtiException ltiex )
+    {
+      throw new IOException( "Invalid nonce with state ID.", ltiex );
+    }
+    
     if ( state == null ) throw new IOException( "State not found for ID given in URL." );
     toolState = state.getToolLaunchState();
     if ( toolState == null ) throw new IOException( "Tool state not found in LTI state." );

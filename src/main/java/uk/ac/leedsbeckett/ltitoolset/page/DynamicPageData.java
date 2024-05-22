@@ -67,6 +67,12 @@ public class DynamicPageData implements Serializable
     return webSocketUri;
   }
 
+  /** 
+   * Will omit the nonce parameter because that needs to be added after
+   * JSP page has been requested and a new nonce generated.
+   * 
+   * @param webSocketUri The full URL with state_id parameter.
+   */
   public void setWebSocketUri( String webSocketUri )
   {
     this.webSocketUri = webSocketUri;

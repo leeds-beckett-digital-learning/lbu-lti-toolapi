@@ -22,6 +22,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
+import uk.ac.leedsbeckett.lti.LtiException;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
 import static uk.ac.leedsbeckett.ltitoolset.page.PageSupport.logger;
@@ -61,11 +62,24 @@ public abstract class ToolPageSupport<T extends DynamicPageData> extends PageSup
     logger.log(Level.FINE, "stateid {0}", stateid );
     if ( stateid == null )
       throw new ServletException( "State ID missing." );
+    String claimedNonce = request.getParameter( "nonce" );
+    logger.log(Level.FINE, "claimedNonce {0}", claimedNonce );
+    if ( claimedNonce == null )
+      throw new ServletException( "Nonce missing." );
     LtiStateStore<ToolSetLtiState> statestore = this.toolCoordinator.getLtiStateStore();
     if ( statestore == null )
       throw new ServletException( "State store missing." );
     logger.log(Level.FINE, "State store available." );
-    state = statestore.getState( stateid );
+    
+    try
+    {
+      state = statestore.getState( stateid, claimedNonce );
+    }
+    catch ( LtiException ex )
+    {
+      throw new ServletException( "Invalid nonce.", ex );
+    }
+    
     if ( state == null )
       throw new ServletException( "State missing. " + stateid );
     logger.log(Level.FINE, "Found state." );
@@ -74,8 +88,9 @@ public abstract class ToolPageSupport<T extends DynamicPageData> extends PageSup
     dynamicPageData.setMyId( state.getPersonId() );
     dynamicPageData.setMyName( state.getPersonName() );
     String uri = state.getToolLaunchState().getRelativeWebSocketUri();
+    // This uri lacks the new nonce parameter so add it
     if ( uri != null )
-      dynamicPageData.setWebSocketUri( getBaseUri() + uri );
+      dynamicPageData.setWebSocketUri( getBaseUri() + uri + "&nonce=" + state.getNonce() );
     logger.log(Level.FINE, "Done setting up ToolPageSupport." );
   }
   
