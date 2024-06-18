@@ -6,6 +6,7 @@ apply plugin: 'signing'
 description = 'LBU-LTI-ToolApi'
 group = 'io.github.leeds-beckett-digital-learning'
 
+
 /**
  * This is here because the LTI dependency may be a snapshot version.
  * Changing the resolution strategy means the ToolApi will be updated even

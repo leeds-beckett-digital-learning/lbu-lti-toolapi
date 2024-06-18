@@ -205,8 +205,8 @@ public class DeepLinkingEndpoint extends ToolEndpoint
 
     ArrayList<LtiResourceLink> reslinks = new ArrayList<>();
     LtiResourceLink reslink = new LtiResourceLink();
-    reslink.setTitle( tool.getTitle() );
-    reslink.setText( selection.getResourceTitle() );
+    reslink.setTitle( selection.getResourceTitle() );
+    reslink.setText( selection.getResourceDescription() );
     reslink.setUrl( toolCoordinator.getLaunchUrl() );
     reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_name", selection.getToolId() );
     reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_type", selection.getToolType() );
