@@ -104,7 +104,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     state.setToolKey( toolKey );
     
     ToolLaunchState toolstate = tool.supplyToolLaunchState();
-    tool.initToolLaunchState( toolstate, lticlaims, state );
+    tool.initToolLaunchState( toolManager.getPlatformConfiguration( lticlaims ), toolstate, lticlaims, state );
     state.setToolLaunchState( toolstate );
     getLtiStateStore( request.getServletContext() ).updateState( state );
 
@@ -158,7 +158,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
       logClaims( lticlaims, state );
     
     DeepLinkingLaunchState deepstate = (DeepLinkingLaunchState)tool.supplyToolLaunchState();
-    tool.initToolLaunchState( deepstate, lticlaims, state );
+    tool.initToolLaunchState( toolManager.getPlatformConfiguration( lticlaims ), deepstate, lticlaims, state );
     state.setToolLaunchState( deepstate );
     getLtiStateStore( request.getServletContext() ).updateState( state );
 

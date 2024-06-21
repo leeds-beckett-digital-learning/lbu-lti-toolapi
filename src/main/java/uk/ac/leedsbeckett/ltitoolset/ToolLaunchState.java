@@ -41,6 +41,7 @@ public class ToolLaunchState implements Serializable
   private String courseId;
   private String courseTitle;
   private String relativeWebSocketUri;
+  protected boolean allowedToConfigure = false;
 
   public PlatformResourceKey getResourceKey()
   {
@@ -100,5 +101,25 @@ public class ToolLaunchState implements Serializable
   public void setRelativeWebSocketUri( String relativeWebSocketUri )
   {
     this.relativeWebSocketUri = relativeWebSocketUri;
+  }
+
+  /**
+   * Is the user connected to this state object allowed to manage the resource?
+   *
+   * @return Is allowed?
+   */
+  public boolean isAllowedToConfigure()
+  {
+    return allowedToConfigure;
+  }
+
+  /**
+   * Simple setter.
+   *
+   * @param allowedToConfigure Is the user allowed to manage the resource.
+   */
+  public void setAllowedToConfigure( boolean allowedToConfigure )
+  {
+    this.allowedToConfigure = allowedToConfigure;
   }
 }

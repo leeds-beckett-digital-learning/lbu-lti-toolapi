@@ -10,6 +10,7 @@ import uk.ac.leedsbeckett.lti.claims.LtiDeepLinkingSettings;
 import uk.ac.leedsbeckett.ltitoolset.Tool;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
+import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
@@ -45,9 +46,9 @@ public class DeepLinkingTool extends Tool
   }  
 
   @Override
-  public void initToolLaunchState( ToolLaunchState toolstate, LtiClaims lticlaims, ToolSetLtiState state )
+  public void initToolLaunchState( PlatformConfiguration platformConfiguration, ToolLaunchState toolstate, LtiClaims lticlaims, ToolSetLtiState state )
   {
-    super.initToolLaunchState( toolstate, lticlaims, state );
+    super.initToolLaunchState( platformConfiguration, toolstate, lticlaims, state );
     LtiDeepLinkingSettings deepsettings = lticlaims.getLtideeplinkingsettings();
     DeepLinkingLaunchState deepstate = (DeepLinkingLaunchState)toolstate;
     deepstate.deepLinkReturnUrl = deepsettings.getDeepLinkReturnUrl();

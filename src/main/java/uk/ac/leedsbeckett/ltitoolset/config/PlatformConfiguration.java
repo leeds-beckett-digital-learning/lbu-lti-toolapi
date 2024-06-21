@@ -15,6 +15,8 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.config;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import java.io.Serializable;
 
 /**
@@ -25,6 +27,9 @@ public class PlatformConfiguration implements Serializable
 {
   boolean ltiLaunchAllowed;
 
+  @JsonProperty( value ="usersPermittedToConfigure", required = false )
+  String[] usersPermittedToConfigure;
+
   public boolean isLtiLaunchAllowed()
   {
     return ltiLaunchAllowed;
@@ -33,5 +38,28 @@ public class PlatformConfiguration implements Serializable
   public void setLtiLaunchAllowed( boolean ltiLaunchAllowed )
   {
     this.ltiLaunchAllowed = ltiLaunchAllowed;
+  }
+
+  public String[] getUsersPermittedToConfigure()
+  {
+    return usersPermittedToConfigure;
+  }
+
+  public void setUsersPermittedToConfigure( String[] usersPermittedToConfigure )
+  {
+    this.usersPermittedToConfigure = usersPermittedToConfigure;
+  }
+  
+  @JsonIgnore 
+  public boolean isUserPermittedToConfigure( String userUuid )
+  {
+    // If no users are specified this is taken to mean everyone might be permitted.
+    // (Users will also need to in LTI sys admin role.
+    if ( usersPermittedToConfigure == null || usersPermittedToConfigure.length == 0 )
+      return true;
+    for ( String uuid : usersPermittedToConfigure )
+      if ( uuid.equals( userUuid ) )
+        return true;
+    return false;
   }
 }

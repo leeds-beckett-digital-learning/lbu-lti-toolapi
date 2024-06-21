@@ -448,6 +448,28 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     registrationConfigurationStore = new RegistrationConfigurationStore( Paths.get( context.getRealPath( "/WEB-INF/registrations/" ) ) );
     platformConfigurationStore     = new PlatformConfigurationStore( Paths.get( context.getRealPath( "/WEB-INF/platforms/" ) ) );
   }
+
+
+  public PlatformConfiguration getPlatformConfiguration( LtiClaims lticlaims )
+  {
+    
+    if ( platformConfigurationStore == null )
+      return null;
+
+    String platformurl = null;
+    String platformguid = null;
+    if ( lticlaims.getLtiToolPlatform() != null )
+    {
+      platformurl = lticlaims.getLtiToolPlatform().getUrl();
+      platformguid = lticlaims.getLtiToolPlatform().getGuid();
+    }
+
+    if ( platformurl == null && platformguid == null )
+      return null;
+    
+    String issuer = lticlaims.getIssuer();
+    return platformConfigurationStore.getPlatformConfigurationByUrl( issuer, platformurl );
+  }
   
   /** 
    * Called after launch request has been validated.Allows tool set to veto specific
