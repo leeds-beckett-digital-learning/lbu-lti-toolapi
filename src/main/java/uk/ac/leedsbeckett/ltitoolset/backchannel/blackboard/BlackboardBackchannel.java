@@ -64,7 +64,12 @@ public class BlackboardBackchannel extends Backchannel
   public synchronized OAuth2Token getAuthToken()
   {
     if ( blackboardAuthToken != null )
-      return blackboardAuthToken;
+    {
+      if ( !blackboardAuthToken.hasExpired() )
+        return blackboardAuthToken;
+      logger.log(Level.FINE, "OAuth2Token expired");
+      blackboardAuthToken = null;
+    }
         
     try
     {
