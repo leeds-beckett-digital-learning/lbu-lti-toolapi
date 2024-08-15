@@ -32,6 +32,7 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershi
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseGroupUsersV2Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseGroupsV2Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCoursesV3Results;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetUsersV1Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.RestExceptionMessage;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.UserV1;
 
@@ -99,6 +100,29 @@ public class BlackboardBackchannel extends Backchannel
     try
     {
       return getBlackboardRest( target, token, params, UserV1.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+  
+
+  public JsonResult getV1UsersByEmail( String email )
+  {
+    if ( StringUtils.isBlank( email ) )
+      return null;
+
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v1/users";
+    ArrayList<NameValuePair> params = new ArrayList<>();
+    params.add( new BasicNameValuePair( "contact.email", email ) );
+    params.add( new BasicNameValuePair( "availability.available", "Yes" ) );
+
+    try
+    {
+      return getBlackboardRest( target, token, params, GetUsersV1Results.class, RestExceptionMessage.class );
     }
     catch ( IOException ex )
     {
