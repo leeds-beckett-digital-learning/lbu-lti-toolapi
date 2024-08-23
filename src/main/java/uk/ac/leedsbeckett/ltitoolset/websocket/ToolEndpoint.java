@@ -117,6 +117,9 @@ public abstract class ToolEndpoint implements BackchannelOwner
     return handlerMap;
   }
 
+  private static long serial = 0x1000;
+  
+  String uniqueid;
   String stateid;
   ToolSetLtiState state;
   ToolLaunchState toolState;
@@ -124,8 +127,13 @@ public abstract class ToolEndpoint implements BackchannelOwner
 
   String platformHost;
   OAuth2Token platformAuthToken=null;
-  
-  
+
+  public ToolEndpoint()
+  {
+    uniqueid = Long.toHexString( serial++ );
+    logger.log(Level.FINE, "Created Instance {0}", uniqueid);
+    logger.log(Level.FINE, "Class {0}", this.getClass().toString() );
+  }
 
   /**
    * After the endpoint is open, get the LTI state ID.
@@ -221,6 +229,7 @@ public abstract class ToolEndpoint implements BackchannelOwner
     {
       platformHost = null;
     }
+    toolCoordinator.addWsSession( this, session );
   }
 
   /**
@@ -234,6 +243,7 @@ public abstract class ToolEndpoint implements BackchannelOwner
   public void onClose(Session session) throws IOException
   {
     getToolCoordinator().releaseBackchannels( this );    
+    toolCoordinator.removeWsSession( this );
   }
 
   /**

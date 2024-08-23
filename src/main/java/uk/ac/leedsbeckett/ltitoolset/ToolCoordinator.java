@@ -93,7 +93,9 @@ import uk.ac.leedsbeckett.ltitoolset.servlet.ToolJwksServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLaunchServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLoginServlet;
 import uk.ac.leedsbeckett.ltitoolset.websocket.MultitonToolEndpoint;
+import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecord;
+import uk.ac.leedsbeckett.ltitoolset.websocket.WebSocketPinger;
 
 /**
  * There is a one to one relationship between instances of this and 
@@ -163,6 +165,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   private final HashMap<PlatformResourceKey,HashMap<String,ToolEndpointSessionRecord>> wssessionlistmap = new HashMap<>();
   private final HashMap<String,ToolEndpointSessionRecord> allWsSessions = new HashMap<>();
   OpenSessionPredicate opensessionpredicate = new OpenSessionPredicate();
+  private final WebSocketPinger wspinger = new WebSocketPinger();
 
   // Blackboard specific
   private boolean usingBlackboardRest = false;
@@ -208,6 +211,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     WebSocketContainer sc = (WebSocketContainer)ctx.getAttribute( ServerContainer.class.getName() );
     if ( sc != null )
       wsContextMap.put( sc, ctx );
+    wspinger.startRefreshing();
 
     logger.info( "ToolCoordinator mapped web socket container against context." );
     
@@ -866,32 +870,40 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   
   
   /**
-   * Keep track of a web socket session.That may be needed so that 
- messages can be multicast to all client endpoints associated with
- a specific resource.
+   * Keep track of all web socket sessions. For ping-pong but also 
+   * so that may be needed so that messages can be multicast to all client 
+   * endpoints associated with a specific resource.
    * 
    * @param endpoint The endpoint that has just been opened.
    * @param session The session to add.
    */
-  public void addWsSession( MultitonToolEndpoint endpoint, Session session )
+  public void addWsSession( ToolEndpoint endpoint, Session session )
   {
+    if ( endpoint == null )
+      throw new IllegalArgumentException( "Endpoint was null" );
+    if ( endpoint.getToolState() == null )
+      throw new IllegalArgumentException( "Endpoint toolstate was null" );
+    
     synchronized ( wssessionlistmap )
     {
-      if ( endpoint == null )
-        throw new IllegalArgumentException( "Endpoint was null" );
-      if ( endpoint.getToolState() == null )
-        throw new IllegalArgumentException( "Endpoint toolstate was null" );
-      PlatformResourceKey key = endpoint.getToolState().getResourceKey();
-      if ( endpoint.getToolState().getResourceKey() == null )
-        throw new IllegalArgumentException( "Endpoint toolstate resource key was null" );
-      HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
-      if ( set == null )
+      wspinger.addSession( session );
+      ToolEndpointSessionRecord tesr = new ToolEndpointSessionRecord( endpoint, session );
+      allWsSessions.put( endpoint.getStateid(), tesr );
+
+      if ( endpoint instanceof MultitonToolEndpoint )
       {
-        set = new HashMap<>();
-        wssessionlistmap.put( key, set );
+        MultitonToolEndpoint mendpoint = (MultitonToolEndpoint)endpoint;
+        PlatformResourceKey key = mendpoint.getToolState().getResourceKey();
+        if ( mendpoint.getToolState().getResourceKey() == null )
+          throw new IllegalArgumentException( "Endpoint toolstate resource key was null" );
+        HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
+        if ( set == null )
+        {
+          set = new HashMap<>();
+          wssessionlistmap.put( key, set );
+        }
+        set.put(mendpoint.getStateid(), tesr );
       }
-      set.put(endpoint.getStateid(), new ToolEndpointSessionRecord( endpoint, session ) );
-      allWsSessions.put(endpoint.getStateid(), new ToolEndpointSessionRecord( endpoint, session ) );
       if ( logger.isLoggable( Level.FINE ) )
         logWsSessions();
     }
@@ -902,15 +914,23 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    * 
    * @param endpoint The endpoint that has just been stopped.
    */
-  public void removeWsSession( MultitonToolEndpoint endpoint )
+  public void removeWsSession( ToolEndpoint endpoint )
   {
     synchronized ( wssessionlistmap )
     {
+      ToolEndpointSessionRecord tesr = allWsSessions.get( endpoint.getStateid() );
+      if ( tesr == null )
+        return;
+      wspinger.removeSession( tesr.getSession() );
       allWsSessions.remove( endpoint.getStateid() );
-      PlatformResourceKey key = endpoint.getToolState().getResourceKey();
-      HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
-      if ( set != null )
-        set.remove( endpoint.getStateid() );
+      if ( endpoint instanceof MultitonToolEndpoint )
+      {
+        MultitonToolEndpoint mendpoint = (MultitonToolEndpoint)endpoint;      
+        PlatformResourceKey key = mendpoint.getToolState().getResourceKey();
+        HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
+        if ( set != null )
+          set.remove( mendpoint.getStateid() );
+      }
       if ( logger.isLoggable( Level.FINE ) )
         logWsSessions();
     }
@@ -1007,6 +1027,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     {
       logger.fine( "Serlvet context is being destroyed." );
       jwksStore.stopRefreshing();
+      wspinger.stopRefreshing();
     }
   }
 }

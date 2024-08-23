@@ -51,7 +51,6 @@ public abstract class MultitonToolEndpoint extends ToolEndpoint
   public void onOpen(Session session) throws IOException
   {
     super.onOpen( session );
-    toolCoordinator.addWsSession( this, session );
   }
   
   /**
@@ -65,7 +64,6 @@ public abstract class MultitonToolEndpoint extends ToolEndpoint
   public void onClose(Session session) throws IOException
   {
     super.onClose( session );
-    toolCoordinator.removeWsSession( this );
   }
 
   /**
