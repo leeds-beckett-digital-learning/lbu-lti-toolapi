@@ -21,22 +21,22 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import java.io.IOException;
 import java.security.PrivateKey;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.logging.Level;
+import uk.ac.leedsbeckett.lti.services.LtiServiceScope;
 
 /**
  *
  * @author maber01
  */
-public class LtiBackchannel extends Backchannel
+public abstract class LtiBackchannel extends Backchannel
 {
-  String nrpsUrl;
-  
   final String authtokenurl;
   final String clientid;
   final String signingkeyid;
   final PrivateKey signingkey;
   
-  OAuth2Token platformAuthToken;
+  private final HashMap<String,OAuth2Token> platformAuthTokenMap = new HashMap<>();
   
   public LtiBackchannel( 
           BackchannelKey key, 
@@ -44,18 +44,16 @@ public class LtiBackchannel extends Backchannel
           String clientid,
           String signingkeyid,
           PrivateKey signingkey )
-  {
-    LtiBackchannelKey ltikey = (LtiBackchannelKey)key;
-    nrpsUrl = ltikey.url;
-    
+  {    
     this.authtokenurl = authtokenurl;
     this.clientid = clientid;
     this.signingkeyid = signingkeyid;
     this.signingkey = signingkey;
   }
   
-  public synchronized OAuth2Token getPlatformAuthToken() throws IOException
+  public synchronized OAuth2Token getPlatformAuthToken( LtiServiceScope scope ) throws IOException
   {
+    OAuth2Token platformAuthToken = platformAuthTokenMap.get( scope.getSpecification() );
     if ( platformAuthToken != null )
       return platformAuthToken;
     
@@ -77,25 +75,20 @@ public class LtiBackchannel extends Backchannel
     String jwtstring = jwtbuilder.compact();
     logger.log(Level.INFO, "Compacted             = {0}", jwtstring );
     
-    // Call the the authorization server by backchannel using HTTP client.
+    // Call the the authorization server by backchannel using HTTP cli.ent.
     // POST to url using form encoding and send these parameters
     // grant_type = 'client_credentials'
     // client_assertion_type = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer'
     // client_assertion = jwtstring
     // scope = Hmmm...
-    JsonResult jresult = postAuthTokenRequest( authtokenurl, jwtstring );
+    JsonResult jresult = postAuthTokenRequest( authtokenurl, scope.getSpecification(), jwtstring );
 
     if ( jresult.isSuccessful() )
     {
       platformAuthToken = (OAuth2Token)jresult.getResult();
+      platformAuthTokenMap.put( scope.getSpecification(), platformAuthToken );
       return platformAuthToken;
     }
     throw new IOException( "Unable to fetch security token from the authorisation server.");
   }
-  
-  public JsonResult getNamesRoles() throws IOException
-  {
-    OAuth2Token t = getPlatformAuthToken();
-    return getNamesRoles( nrpsUrl,  t.getAccessToken() );
-  }  
 }

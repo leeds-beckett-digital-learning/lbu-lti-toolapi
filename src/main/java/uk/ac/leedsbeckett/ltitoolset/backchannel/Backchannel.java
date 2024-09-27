@@ -59,6 +59,9 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.ssl.SSLContextBuilder;
+import uk.ac.leedsbeckett.lti.services.ags.data.LineItem;
+import uk.ac.leedsbeckett.lti.services.ags.data.LineItems;
+import uk.ac.leedsbeckett.lti.services.ags.data.Score;
 import uk.ac.leedsbeckett.lti.services.data.ServiceStatus;
 import uk.ac.leedsbeckett.lti.services.nrps.data.NrpsMembershipContainer;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.OAuth2Error;
@@ -197,6 +200,7 @@ public abstract class Backchannel
   
   public JsonResult postAuthTokenRequest( 
           String url, 
+          String scope,
           String assertion ) throws IOException
   {
     final HttpPost httpPost = new HttpPost( url );
@@ -204,7 +208,7 @@ public abstract class Backchannel
     params.add(new BasicNameValuePair("grant_type", "client_credentials" ));
     params.add(new BasicNameValuePair("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer" ));
     params.add(new BasicNameValuePair("client_assertion", assertion ));
-    params.add(new BasicNameValuePair("scope", "https://purl.imsglobal.org/spec/lti-nrps/scope/contextmembership.readonly" ));
+    params.add(new BasicNameValuePair("scope", scope ));
     
     httpPost.setEntity( new UrlEncodedFormEntity( params ) );
     logger.log( Level.INFO, "Executing POST on {0}", url );
@@ -356,24 +360,26 @@ public abstract class Backchannel
     final HttpGet httpGet = new HttpGet( url );
     httpGet.addHeader( "Accept", "application/vnd.ims.lti-nrps.v2.membershipcontainer+json" );
     httpGet.addHeader( "Authorization", bearer );
-    logger.log( Level.INFO, "Executing POST on {0}", url );
+    logger.log( Level.INFO, "Executing GET on {0}", url );
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpGet))
     {
-      Header[] headers = response.getAllHeaders();
-      logger.log(Level.FINE, "HTTP Response Headers:" );
-      for ( Header h : headers )
-      {
-        logger.log(Level.FINE, "{0} = {1}", new Object[ ]{h.getName(), h.getValue()});
-        for ( HeaderElement he : h.getElements() )
-        {
-          logger.log(Level.FINE, "Header element {0} = {1}", new Object[ ]{he.getName(), he.getValue()});
-          for ( NameValuePair nvp : he.getParameters() )
-            logger.log(Level.FINE, "       Parameter {0} = {1}", new Object[ ]{nvp.getName(), nvp.getValue()});
-        }
-      }
-      logger.log(Level.FINE, "End of headers." );
+      
+//      Header[] headers = response.getAllHeaders();
+//      logger.log(Level.FINE, "HTTP Response Headers:" );
+//      for ( Header h : headers )
+//      {
+//        logger.log(Level.FINE, "{0} = {1}", new Object[ ]{h.getName(), h.getValue()});
+//        for ( HeaderElement he : h.getElements() )
+//        {
+//          logger.log(Level.FINE, "Header element {0} = {1}", new Object[ ]{he.getName(), he.getValue()});
+//          for ( NameValuePair nvp : he.getParameters() )
+//            logger.log(Level.FINE, "       Parameter {0} = {1}", new Object[ ]{nvp.getName(), nvp.getValue()});
+//        }
+//      }
+//      logger.log(Level.FINE, "End of headers." );
+      
       return new JsonResult( 
               response,
               NrpsMembershipContainer.class,
@@ -386,7 +392,129 @@ public abstract class Backchannel
     }
   }  
 
+  public JsonResult getLineItems( String url, String token ) throws IOException
+  {
+    String bearer = "Bearer " + token;
+    logger.log( Level.INFO, "Authorization header set to {0}", bearer );
+    final HttpGet httpGet = new HttpGet( url );
+    httpGet.addHeader( "Accept", "application/vnd.ims.lis.v2.lineitemcontainer+json" );
+    httpGet.addHeader( "Authorization", bearer );
+    logger.log( Level.INFO, "Executing GET on {0}", url );
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute(httpGet))
+    {
+//      Header[] headers = response.getAllHeaders();
+//      logger.log(Level.FINE, "HTTP Response Headers:" );
+//      for ( Header h : headers )
+//      {
+//        logger.log(Level.FINE, "{0} = {1}", new Object[ ]{h.getName(), h.getValue()});
+//        for ( HeaderElement he : h.getElements() )
+//        {
+//          logger.log(Level.FINE, "Header element {0} = {1}", new Object[ ]{he.getName(), he.getValue()});
+//          for ( NameValuePair nvp : he.getParameters() )
+//            logger.log(Level.FINE, "       Parameter {0} = {1}", new Object[ ]{nvp.getName(), nvp.getValue()});
+//        }
+//      }
+//      logger.log(Level.FINE, "End of headers." );
+      return new JsonResult( 
+              response,
+              LineItems.class,
+              ServiceStatus.class );
+    }
+    catch ( IOException iex )
+    {
+      logger.log( Level.SEVERE, "IO problem when fetching data from platform.", iex );
+      return null;
+    }
+  }  
 
+  public JsonResult postLineItem( String url, String token, LineItem lineItem ) throws IOException
+  {
+    String s = serializeObject( lineItem );
+    
+    String bearer = "Bearer " + token;
+    logger.log( Level.INFO, "Authorization header set to {0}", bearer );
+    final HttpPost httpPost = new HttpPost( url );
+    httpPost.addHeader( "Content-Type", "application/vnd.ims.lis.v2.lineitem+json" );
+    httpPost.addHeader( "Authorization", bearer );
+    StringEntity stringEntity = new StringEntity( s, StandardCharsets.UTF_8 );
+    httpPost.setEntity( stringEntity );
+    logger.log( Level.INFO, "Executing POST on {0}", url );
+    
+    
+    
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute(httpPost))
+    {
+//      Header[] headers = response.getAllHeaders();
+//      logger.log(Level.FINE, "HTTP Response Headers:" );
+//      for ( Header h : headers )
+//      {
+//        logger.log(Level.FINE, "{0} = {1}", new Object[ ]{h.getName(), h.getValue()});
+//        for ( HeaderElement he : h.getElements() )
+//        {
+//          logger.log(Level.FINE, "Header element {0} = {1}", new Object[ ]{he.getName(), he.getValue()});
+//          for ( NameValuePair nvp : he.getParameters() )
+//            logger.log(Level.FINE, "       Parameter {0} = {1}", new Object[ ]{nvp.getName(), nvp.getValue()});
+//        }
+//      }
+//      logger.log(Level.FINE, "End of headers." );
+      return new JsonResult( 
+              response,
+              LineItem.class,
+              ServiceStatus.class );
+    }
+    catch ( IOException iex )
+    {
+      logger.log( Level.SEVERE, "IO problem when fetching data from platform.", iex );
+      return null;
+    }
+  }  
+  
+  public JsonResult postScores( String url, String token, Score score ) throws IOException
+  {
+    String s = serializeObject( score );
+    
+    String bearer = "Bearer " + token;
+    logger.log( Level.INFO, "Authorization header set to {0}", bearer );
+    final HttpPost httpPost = new HttpPost( url );
+    httpPost.addHeader( "Content-Type", "application/vnd.ims.lis.v1.score+json" );
+    httpPost.addHeader( "Authorization", bearer );
+    StringEntity stringEntity = new StringEntity( s, StandardCharsets.UTF_8 );
+    httpPost.setEntity( stringEntity );
+    logger.log( Level.INFO, "Executing POST on {0}", url );
+
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute(httpPost))
+    {
+//      Header[] headers = response.getAllHeaders();
+//      logger.log(Level.FINE, "HTTP Response Headers:" );
+//      for ( Header h : headers )
+//      {
+//        logger.log(Level.FINE, "{0} = {1}", new Object[ ]{h.getName(), h.getValue()});
+//        for ( HeaderElement he : h.getElements() )
+//        {
+//          logger.log(Level.FINE, "Header element {0} = {1}", new Object[ ]{he.getName(), he.getValue()});
+//          for ( NameValuePair nvp : he.getParameters() )
+//            logger.log(Level.FINE, "       Parameter {0} = {1}", new Object[ ]{nvp.getName(), nvp.getValue()});
+//        }
+//      }
+//      logger.log(Level.FINE, "End of headers." );
+      return new JsonResult( 
+              response,
+              Object.class,
+              ServiceStatus.class );
+    }
+    catch ( IOException iex )
+    {
+      logger.log( Level.SEVERE, "IO problem when fetching data from platform.", iex );
+      return null;
+    }
+  }  
+  
   String serializeObject( Object o )
   {
     if ( !reqobjectmapper.canSerialize( o.getClass() ) )

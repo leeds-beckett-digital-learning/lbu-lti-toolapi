@@ -23,22 +23,37 @@ import uk.ac.leedsbeckett.lti.services.LtiServiceScopeSet;
  */
 public class LtiBackchannelKey extends BackchannelKey
 {
-  protected String url;
-  protected String scopespec;
+  private final Class<? extends LtiBackchannel> type;
+  private final String url;
+  private final String scopespec;
 
-  public LtiBackchannelKey( String platform, String url, LtiServiceScopeSet scopeSet )
+  public LtiBackchannelKey( String platform, Class<? extends LtiBackchannel> type, String url, LtiServiceScopeSet scopeSet )
   {
     super( platform );
+    this.type = type;
     this.url = url;
     this.scopespec = scopeSet.getScopeSpecification();
   }
-  
-  
+
+  public Class<? extends LtiBackchannel> getType()
+  {
+    return type;
+  }
+
+  public String getUrl()
+  {
+    return url;
+  }
+
+  public String getScopespec()
+  {
+    return scopespec;
+  }
   
   @Override
   public int hashCode()
   {
-    return platform.hashCode() | url.hashCode() | scopespec.hashCode();
+    return platform.hashCode() | type.hashCode() | url.hashCode() | scopespec.hashCode();
   }
 
   @Override
@@ -59,6 +74,7 @@ public class LtiBackchannelKey extends BackchannelKey
     
     final LtiBackchannelKey other = (LtiBackchannelKey) obj;
     return this.platform.equals( other.platform )     && 
+            this.type.equals(  other.type ) &&
             this.url.equals(  other.url ) &&
             this.scopespec.equals(  other.scopespec );
   }

@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
+import java.lang.reflect.Constructor;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecordPredicate;
 import java.lang.reflect.InvocationTargetException;
 import java.nio.file.Paths;
@@ -708,22 +709,40 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
         b = new BlackboardBackchannel( (BlackboardBackchannelKey)key, blackboardconfig.getId(), blackboardconfig.getSecret() );
       }
       
-      if ( key instanceof LtiBackchannelKey )
+      else if ( key instanceof LtiBackchannelKey )
       {
-        b = new LtiBackchannel( 
-                key, 
-                lticonfig.getClientLtiConfiguration( state.getClientKey() ).getAuthTokenUrl(),
-                state.getClientId(),
-                this.kid,
-                this.privateKey );
+        Class<? extends LtiBackchannel> clazz = ((LtiBackchannelKey) key).getType();
+        try
+        {
+          if ( clazz != null )
+          {
+            Constructor<? extends LtiBackchannel> cons = clazz.getConstructor( 
+              BackchannelKey.class, 
+              String.class, 
+              String.class,
+              String.class,
+              PrivateKey.class );
+            if ( cons != null )
+              b = cons.newInstance( 
+                    key, 
+                    lticonfig.getClientLtiConfiguration( state.getClientKey() ).getAuthTokenUrl(),
+                    state.getClientId(),
+                    this.kid,
+                    this.privateKey );
+          }
+        }
+        catch ( NoSuchMethodException | SecurityException | InstantiationException | IllegalAccessException | IllegalArgumentException | InvocationTargetException ex )
+        {
+          logger.log( Level.SEVERE, null, ex );
+        }
       }
       
-      if ( key instanceof LtiAutoRegistrationBackchannelKey )
+      else if ( key instanceof LtiAutoRegistrationBackchannelKey )
       {
         b = new LtiAutoRegistrationBackchannel( key );
       }
       
-      if ( key instanceof JwksBackchannelKey )
+      else if ( key instanceof JwksBackchannelKey )
       {
         b = new JwksBackchannel();
       }
