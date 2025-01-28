@@ -33,6 +33,7 @@ public class CourseV2
   private final String courseId;
   private final String name;
   private final String description;
+  private final String parentId;
 
   @JsonCreator
   public CourseV2( @JsonProperty(value = "id",           required = true ) String id, 
@@ -41,7 +42,8 @@ public class CourseV2
                    @JsonProperty(value = "dataSourceId", required = false) String dataSourceId, 
                    @JsonProperty(value = "courseId",     required = true ) String courseId, 
                    @JsonProperty(value = "name",         required = true ) String name, 
-                   @JsonProperty(value = "description",  required = false) String description )
+                   @JsonProperty(value = "description",  required = false) String description,
+                   @JsonProperty(value = "parentId",     required = false) String parentId)
   {
     this.id = id;
     this.uuid = uuid;
@@ -50,6 +52,7 @@ public class CourseV2
     this.courseId = courseId;
     this.name = name;
     this.description = description;
+    this.parentId = parentId;
   }
 
   @JsonProperty
@@ -92,5 +95,11 @@ public class CourseV2
   public String getDescription()
   {
     return description;
+  }  
+
+  @JsonProperty
+  public String getParentId()
+  {
+    return parentId;
   }  
 }
