@@ -74,4 +74,11 @@ public @interface ToolSetMapping
    * @return The URL.
    */
   public String deepLinkingUrl();
+
+  /**
+   * The URL of the blob exchange servlet..
+   * 
+   * @return The URL.
+   */
+  public String blobExchangeUrl();
 }

@@ -37,16 +37,6 @@ public class ToolEndpointSessionRecord
     return endpoint;
   }
 
-  public boolean isMultitonEndpoint()
-  {
-    return endpoint instanceof MultitonToolEndpoint;
-  }
-  
-  public MultitonToolEndpoint getMultitonEndpoint()
-  {
-    return (MultitonToolEndpoint)endpoint;
-  }
-
   public Session getSession()
   {
     return session;

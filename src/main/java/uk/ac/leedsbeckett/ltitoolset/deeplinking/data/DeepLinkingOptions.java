@@ -5,11 +5,11 @@
 package uk.ac.leedsbeckett.ltitoolset.deeplinking.data;
 
 import java.util.ArrayList;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolInformation;
 
 /**
  * A data object sent to websocket clients containing information about
- * all the tools/resources that the authenticated user can link/create.
+ * all the tools/facets and existing tool resources that the authenticated 
+ * user can link to/create.
  * @author jon
  */
 public class DeepLinkingOptions

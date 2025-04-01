@@ -65,7 +65,7 @@ public class TwoStringKey implements Serializable
   @Override
   public boolean equals( Object obj )
   {
-    if ( !(obj instanceof TwoStringKey) )
+    if ( obj.getClass() != this.getClass() )
       return false;
     TwoStringKey other = (TwoStringKey)obj;
     return this.a.equals( other.a ) && this.b.equals( other.b );

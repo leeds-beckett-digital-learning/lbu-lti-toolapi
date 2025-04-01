@@ -21,7 +21,7 @@ import uk.ac.leedsbeckett.ltitoolset.util.TwoStringKey;
 
 
 /**
- * A two part key that identifies resources based on the ID of the 
+ * A two part key that identifies platform resources based on the ID of the 
  * launching platform and that platform's own resource ID.
  * 
  * @author jon
@@ -32,13 +32,14 @@ public class PlatformResourceKey extends TwoStringKey implements Serializable
    * The standard constructor.
    * 
    * @param platformId Annotated to help with serialization as JSON.
-   * @param resourceId Annotated to help with serialization as JSON.
+   * @param platformResourceId Annotated to help with serialization as JSON. Name
+   * in JSON differs from official name for backward compatibility.
    */
   public PlatformResourceKey( 
           @JsonProperty("platformId") String platformId, 
-          @JsonProperty("resourceId") String resourceId )
+          @JsonProperty("resourceId") String platformResourceId )
   {
-    super( platformId, resourceId );
+    super( platformId, platformResourceId );
   }
 
   /**
@@ -54,9 +55,13 @@ public class PlatformResourceKey extends TwoStringKey implements Serializable
   /**
    * Get the resource ID that the platform generated for this resource.
    * 
+   * Stored in JSON with property name "resourceId" for backward
+   * compatibility.
+   * 
    * @return The resource ID.
    */
-  public String getResourceId()
+  @JsonProperty("resourceId")
+  public String getPlatformResourceId()
   {
     return getB();
   }

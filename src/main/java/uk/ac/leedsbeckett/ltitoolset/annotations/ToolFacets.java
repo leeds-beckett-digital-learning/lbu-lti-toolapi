@@ -27,33 +27,7 @@ import java.lang.annotation.Target;
  */
 @Retention( RetentionPolicy.RUNTIME )
 @Target( ElementType.TYPE )
-public @interface ToolMapping
+public @interface ToolFacets
 {
-  /**
-   * Tool name that maps to the annotated tool.
-   * 
-   * @return The name.
-   */
-  public String id();
-  
-  /**
-   * Tool type that maps to the annotated tool.
-   * 
-   * @return The type.
-   */
-  public String type();
-  
-  /**
-   * The human readable title.
-   * 
-   * @return The title.
-   */
-  public String title();
-  
-  /**
-   * The URI which the launch process should send the user to.
-   * 
-   * @return The URI.
-   */
-  public String launchURI();
+  ToolFacet[] value();
 }

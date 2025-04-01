@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 maber01.
+ * Copyright 2025 maber01.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,19 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package uk.ac.leedsbeckett.ltitoolset.deeplinking;
-
-import java.io.Serializable;
-import uk.ac.leedsbeckett.ltitoolset.page.DynamicPageData;
+package uk.ac.leedsbeckett.ltitoolset.blobex;
 
 /**
  *
  * @author maber01
  */
-public class DeepLinkingPageData extends DynamicPageData implements Serializable
+public class BlobExchanger
 {
-  public String id;
-  public String courseid;
-  public String deepLinkReturnUrl;
-  public String codedMessageCancel;
+  String servletUrl;
+
+  public String getServletUrl()
+  {
+    return servletUrl;
+  }
+
+  public void setServletUrl( String servletUrl )
+  {
+    this.servletUrl = servletUrl;
+  }
 }

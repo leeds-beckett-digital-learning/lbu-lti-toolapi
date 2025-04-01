@@ -21,7 +21,6 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelOwner;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
-import static uk.ac.leedsbeckett.ltitoolset.websocket.MultitonToolEndpoint.logger;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
 
 /**
@@ -135,6 +134,16 @@ public abstract class ToolEndpoint implements BackchannelOwner
     logger.log(Level.FINE, "Class {0}", this.getClass().toString() );
   }
 
+  public boolean indexByPlatformResource()
+  {
+    return false;
+  }
+  
+  public boolean indexByToolResource()
+  {
+    return false;
+  }
+  
   /**
    * After the endpoint is open, get the LTI state ID.
    *
@@ -355,5 +364,41 @@ public abstract class ToolEndpoint implements BackchannelOwner
     }
   }
 
+  /**
+   * Find all the sessions that are current and relate to the same resource
+   * key as for this endpoint. Then send a copy of the message to each of them.
+   * Will include the client connected to the other end of this socket.
+   * 
+   * @param tm The message to send.
+   */
+  public void sendToolMessageToPlatformResourceUsers( ToolMessage tm )
+  {
+    if ( !indexByPlatformResource() || toolState.getPlatformResourceKey() == null )
+      return;
     
+    for ( Session s : toolCoordinator.getWsSessionsForPlatformResource( toolState.getPlatformResourceKey() ) )
+    {
+      logger.info( "Telling a client." );
+      s.getAsyncRemote().sendObject( tm );
+    }
+  }
+    
+  /**
+   * Find all the sessions that are current and relate to the same tool resource
+   * as for this endpoint. Then send a copy of the message to each of them.
+   * Will include the client connected to the other end of this socket.
+   * 
+   * @param tm The message to send.
+   */
+  public void sendToolMessageToToolResourceUsers( ToolMessage tm )
+  {
+    if ( !indexByToolResource() || toolState.getToolResourceId() == null )
+      return;
+    
+    for ( Session s : toolCoordinator.getWsSessionsForToolResource( toolState.getToolResourceId() ) )
+    {
+      logger.info( "Telling a client." );
+      s.getAsyncRemote().sendObject( tm );
+    }
+  }
 }

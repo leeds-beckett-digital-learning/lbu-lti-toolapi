@@ -42,9 +42,9 @@ public class EndpointJavascriptGenerator
   static String clientPayload;
   
   /**
-   * Load some javascript templates from resources.
+   * Load some javascript templates from java resources.
    * 
-   * @throws IOException Thrown if a file is missing from resource files.
+   * @throws IOException Thrown if a file is missing from java resource files.
    */
   static void loadResources() throws IOException
   {

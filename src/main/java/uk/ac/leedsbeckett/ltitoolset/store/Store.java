@@ -32,12 +32,7 @@ import javax.cache.expiry.CreatedExpiryPolicy;
 import javax.cache.expiry.Duration;
 
 /**
- * A store of resources which can be retrieved using keys.At present all
- * resources stay in the store until the store is garbage collected after the
- * web application shuts down.All resources are lost entirely at shut down
- * in this demo. A proper implementation would store data on file or in a 
- * database and would purge memory of resources that haven't been used for a
- * while.
+ * A store of data records which can be retrieved using keys. 
  * 
  * @author jon
  * @param <K> The key class.
@@ -97,12 +92,11 @@ public abstract class Store<K,T extends Entry<K>>
     
   
   /**
-   * Find a resource keyed by platform ID and resource ID with option to
-   * create the resource if it doesn't exist yet.
+   * Find a keyed record create the record if it doesn't exist yet.
    * 
    * @param key The unique key of the entry.
-   * @param create Set true if the resource should be created if it doesn't already exist.
-   * @return The resource or null if it wasn't found and creation wasn't requested.
+   * @param create Set true if the record should be created if it doesn't already exist.
+   * @return The record or null if it wasn't found and creation wasn't requested.
    */
   public synchronized T get( K key, boolean create )
   {
@@ -131,7 +125,7 @@ public abstract class Store<K,T extends Entry<K>>
       {
         logger.log( Level.FINE, "Created and saved - {0}", key.toString() );
         r = create( key );
-        // an entirely new resource so set it up
+        // an entirely new record so set it up
         r.initialize();
         save( key, r );
         // save also caches the record so we are done now
@@ -156,7 +150,7 @@ public abstract class Store<K,T extends Entry<K>>
   public void update( T entry ) throws IOException
   {
     if ( entry.getKey() == null )
-      throw new IllegalArgumentException( "Cannot update resource that lacks a key." );
+      throw new IllegalArgumentException( "Cannot update record that lacks a key." );
     save( entry.getKey(), entry );
   }
 
@@ -193,6 +187,7 @@ public abstract class Store<K,T extends Entry<K>>
     objectmapper.writeValue( filepath.toFile(), r );
     cache.put( key, r );
     if ( !cache.containsKey(key) )
-      logger.log( Level.SEVERE, "Put resource in cache but key is not present {0}", key.toString() );
+      logger.log( Level.SEVERE, "Put record in cache but key is still not present {0}", key.toString() );
   }  
 }
+ 

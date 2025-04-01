@@ -36,12 +36,12 @@ import uk.ac.leedsbeckett.lti.state.LtiStateStore;
 import uk.ac.leedsbeckett.ltitoolset.LaunchDisallowedException;
 import uk.ac.leedsbeckett.ltitoolset.Tool;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
-import uk.ac.leedsbeckett.ltitoolset.ToolKey;
+import uk.ac.leedsbeckett.ltitoolset.ToolFacetKey;
 import uk.ac.leedsbeckett.ltitoolset.ToolLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingTool;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFacet;
 
 
 /**
@@ -88,30 +88,48 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     
     
     String toolid = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_name" );
-    String tooltype = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_type" );
+    String toolfacetid = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_facet" );
+    // This is only present if facet is 'tool resource' level.
+    String toolresourceid = lticlaims.getLtiCustom().getAsString( "digles.leedsbeckett.ac.uk#tool_resource_id" );
 
-    ToolKey toolKey = new ToolKey( tooltype, toolid );
-    Tool tool = toolManager.getTool( toolKey );
+    Tool tool = toolManager.getTool( toolid );
     if ( tool == null )
     {
-      outputDebuggingInfo( lticlaims, state, request, response, toolid, tooltype );
+      outputDebuggingInfo( lticlaims, state, request, response, toolid, toolfacetid, toolresourceid );
       return;
     }
+    
+    if ( toolfacetid == null )
+      toolfacetid = tool.getDefaultFacetId();
+    if ( toolfacetid == null )
+    {
+      outputDebuggingInfo( lticlaims, state, request, response, toolid, toolfacetid, toolresourceid );
+      return;
+    }
+    
+    ToolFacetKey toolFacetKey = new ToolFacetKey( toolid, toolfacetid );
+    ToolFacet toolfacet = toolManager.getToolFacet( toolFacetKey );
+    if ( toolfacet == null )
+    {
+      outputDebuggingInfo( lticlaims, state, request, response, toolid, toolfacetid, toolresourceid );
+      return;
+    }
+    
+    state.setToolFacetKey( toolFacetKey );
+    state.setToolResourceId( toolresourceid );
+    
     if ( logger.isLoggable( Level.FINE ) )
       logClaims( lticlaims, state );
-
-    ToolMapping toolMapping = toolManager.getToolMapping( toolKey );    
-    state.setToolKey( toolKey );
     
     ToolLaunchState toolstate = tool.supplyToolLaunchState();
     tool.initToolLaunchState( toolManager.getPlatformConfiguration( lticlaims ), toolstate, lticlaims, state );
     state.setToolLaunchState( toolstate );
     getLtiStateStore( request.getServletContext() ).updateState( state );
 
-    logger.fine( "Forwarding to tool index page." );
+    logger.fine( "Forwarding to tool facet launch URI." );
     StringBuilder sb = new StringBuilder();
     sb.append( request.getContextPath() )
-      .append( toolMapping.launchURI()  )
+      .append( toolfacet.launchURI()  )
       .append( "?state_id="             )
       .append( state.getId()            )
       .append( "&nonce="                )
@@ -151,7 +169,7 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
     DeepLinkingTool tool = toolManager.getDeepLinkingTool();
     if ( tool == null )
     {
-      outputDebuggingInfo( lticlaims, state, request, response, null, null );
+      outputDebuggingInfo( lticlaims, state, request, response, null, null, null );
       return;
     }
     if ( logger.isLoggable( Level.FINE ) )
@@ -204,7 +222,8 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
    * @param request The HTTP request.
    * @param response The HTTP response.
    * @param toolid Tool ID
-   * @param tooltype Tool Type
+   * @param toolfacetid Tool Type
+   * @param toolresourceid The specific tool resource ID or null.
    * @throws ServletException If there is an internal problem forwarding the user's browser.
    * @throws IOException If the network connection is broken while sending the forwarding response.
    */
@@ -214,7 +233,8 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
           HttpServletRequest request, 
           HttpServletResponse response,
           String toolid,
-          String tooltype )
+          String toolfacetid,
+          String toolresourceid )
           throws ServletException, IOException
   {
     response.setContentType( "text/html;charset=UTF-8" );
@@ -249,7 +269,8 @@ public class ToolLaunchServlet extends LtiLaunchServlet<ToolSetLtiState>
       out.println( "<h2>Technical breakdown of launch request</h2>" );
       out.println( "<table>");
       out.println( "<tr><th>toolname</th><td>" + toolid + "</td></tr>" );
-      out.println( "<tr><th>tooltype</th><td>" + tooltype + "</td></tr>" );
+      out.println( "<tr><th>toolfacet</th><td>" + toolfacetid + "</td></tr>" );
+      out.println( "<tr><th>toolresourceid</th><td>" + toolresourceid + "</td></tr>" );
       out.println( "</table>");
 
       out.println( "<h3>LTI Claims</h3>" );

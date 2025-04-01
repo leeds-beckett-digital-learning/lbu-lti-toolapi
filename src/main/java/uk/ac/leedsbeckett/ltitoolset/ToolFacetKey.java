@@ -15,8 +15,9 @@
  */
 package uk.ac.leedsbeckett.ltitoolset;
 
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolProperties;
 import uk.ac.leedsbeckett.ltitoolset.util.TwoStringKey;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFacet;
 
 /**
  * A key for tools based on LTI launch type and tool name passed
@@ -24,40 +25,41 @@ import uk.ac.leedsbeckett.ltitoolset.util.TwoStringKey;
  * 
  * @author maber01
  */
-public class ToolKey extends TwoStringKey
+public class ToolFacetKey extends TwoStringKey
 {
   /**
    * Construct key based on two strings.
    * 
-   * @param type The type of the tool - e.g. placement type.
-   * @param id The name of the tool.
+   * @param toolId The ID of the tool.
+   * @param facetId The ID of the mapping.
    */
-  public ToolKey( String type, String id )
+  public ToolFacetKey( String toolId, String facetId )
   {
-    super( type, id );
+    super( toolId, facetId );
   } 
   
   /**
    * Construct based on a tool mapping.
    * 
-   * @param mapping A mapping that encapsulates type and name.
+   * @param props Properties of the tool.
+   * @param facet A launch mapping for the tool.
    */
-  public ToolKey( ToolMapping mapping )
+  public ToolFacetKey( ToolProperties props, ToolFacet facet )
   {
-    super( mapping.type(), mapping.id() );
+    super( props.id(), facet.id() );
   }
   
   /**
-   * Getter for the type value.
+   * Getter for part A of key.
    * 
-   * @return Type of LTI launch - e.g. placement type.
+   * @return The ID of the tool.
    */
-  public String getType() { return getA(); }
+  public String getToolId() { return getA(); }
   
   /**
-   * Getter for the name value.
+   * Getter for part B of key.
    * 
-   * @return Name of the tool.
+   * @return The ID of the mapping.
    */
-  public String getId() { return getB(); }
+  public String getFacetId() { return getB(); }
 }

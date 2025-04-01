@@ -16,24 +16,27 @@
 
 package uk.ac.leedsbeckett.ltitoolset;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import uk.ac.leedsbeckett.lti.config.ClientLtiConfigurationKey;
 import uk.ac.leedsbeckett.lti.state.LtiState;
 
 /**
- * This demo's customised subclass of LtiState which can store additional
- * information which is specific to this tool.
+ * This API's customised subclass of LtiState which can store additional
+ * information which is specific to the kind of tools the API supports.
  * 
  * @author jon
  */
 public class ToolSetLtiState extends LtiState implements Serializable
 {
   /**
-   * Data that relates to the course-content servlet.
+   * Data that relates to tool/facet/resource selection and launch.
    */
-  ToolLaunchState   toolLaunchState = null;
+  private ToolLaunchState   toolLaunchState = null;
   
-  ToolKey toolKey = null;
+  private ToolFacetKey toolFacetKey = null;
+
+  private String toolResourceId = null;
   
   /**
    * Constructor of this state must make sure the superclass constructor
@@ -66,13 +69,37 @@ public class ToolSetLtiState extends LtiState implements Serializable
     this.toolLaunchState = launchState;
   }
 
-  public ToolKey getToolKey()
+  public ToolFacetKey getToolFacetKey()
   {
-    return toolKey;
+    return toolFacetKey;
   }
 
-  public void setToolKey( ToolKey toolKey )
+  public void setToolFacetKey( ToolFacetKey toolKey )
   {
-    this.toolKey = toolKey;
+    this.toolFacetKey = toolKey;
+  }
+
+  public String getToolResourceId()
+  {
+    return toolResourceId;
+  }
+
+  public void setToolResourceId( String toolResourceId )
+  {
+    this.toolResourceId = toolResourceId;
+  }
+
+  @JsonIgnore
+  public String getToolId()
+  {
+    if ( toolFacetKey == null ) return null;
+    return toolFacetKey.getToolId();
+  }
+
+  @JsonIgnore
+  public String getToolFacetId()
+  {
+    if ( toolFacetKey == null ) return null;
+    return toolFacetKey.getFacetId();
   }
 }

@@ -6,6 +6,7 @@ package uk.ac.leedsbeckett.ltitoolset.deeplinking;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.websocket.OnClose;
@@ -17,15 +18,10 @@ import javax.websocket.server.ServerEndpoint;
 import uk.ac.leedsbeckett.lti.messages.LtiMessageDeepLinkingResponse;
 import uk.ac.leedsbeckett.lti.resourcelink.LtiResourceLink;
 import uk.ac.leedsbeckett.ltitoolset.Tool;
-import uk.ac.leedsbeckett.ltitoolset.ToolKey;
 import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolInstantiationType;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolInstantiationLevel;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.DeepLinkingOptions;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.DeepLinkingSelection;
-import uk.ac.leedsbeckett.ltitoolset.resources.ToolResourceKey;
-import uk.ac.leedsbeckett.ltitoolset.resources.ToolResourceRecord;
-import uk.ac.leedsbeckett.ltitoolset.resources.ToolResourceRecordEntry;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 import uk.ac.leedsbeckett.ltitoolset.websocket.HandlerAlertException;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessage;
@@ -33,6 +29,8 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageDecoder;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageEncoder;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointJavascriptProperties;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFacet;
+import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.ToolInformation;
 
 /**
  * A web socket endpoint that helps a deeplinking JSP page to create a deep link in a
@@ -115,7 +113,7 @@ public class DeepLinkingEndpoint extends ToolEndpoint
   
   
   /**
-   * Client requested the resource data.
+   * Client requested the list of tools/facets that can be instantiated.
    * 
    * @param session The session this endpoint belongs to.
    * @param message The incoming message from the client end.
@@ -130,22 +128,24 @@ public class DeepLinkingEndpoint extends ToolEndpoint
     
     DeepLinkingOptions options = new DeepLinkingOptions();
 
-    for ( ToolKey tk :toolCoordinator.getToolKeys() )
+    for ( String toolId : toolCoordinator.getToolIds() )
     {
-      Tool tool = toolCoordinator.getTool( tk );
-      if ( tool.allowDeepLink( deepstate ) )
-        options.addToolInformation( tool.getToolInformation() );
-    }    
+      Tool tool = toolCoordinator.getTool( toolId );      
+      ToolInformation toolinfo = tool.getDeepLinkingToolInformation( deepstate );
+      if ( toolinfo.getFacets().length > 0 )
+        options.addToolInformation( toolinfo );
+    }
+    
     sendToolMessage( session, new ToolMessage( message.getId(), DeepServerMessageName.Options, options ) );    
   }  
 
   /**
-   * Client specified a tool and resource title and wishes to receive a JWT encoded
+   * Client specified a tool/facet and properties and wishes to receive a JWT encoded
    * deep linking message which it can use to create the deep link.
    * 
    * @param session The session this endpoint belongs to.
    * @param message The incoming message from the client end.
-   * @param selection Input to link to/create resource.
+   * @param selection Input to link to/create tool resource.
    * @throws IOException Indicates failure to process. 
    * @throws uk.ac.leedsbeckett.ltitoolset.websocket.HandlerAlertException Indicates problem with handling the incoming message.
    */
@@ -157,32 +157,38 @@ public class DeepLinkingEndpoint extends ToolEndpoint
     if ( selection == null )
       throw new HandlerAlertException( "Cannot process null tool selection.", message.getId() );
     if ( selection.getToolResourceId() != null )
-      throw new HandlerAlertException( "Deep linking to an existing resource is not supported.", message.getId() );
-    if ( selection.getToolId() == null || selection.getToolType() == null )
-      throw new HandlerAlertException( "Cannot process tool selection with null tool id or tool type.", message.getId() );
+      throw new HandlerAlertException( "Deep linking to an existing tool resource is not supported.", message.getId() );
+    // Tool type now ignored
+    if ( selection.getToolId() == null )
+      throw new HandlerAlertException( "Cannot process tool selection with null tool id.", message.getId() );
     
-    
-    Tool tool = toolCoordinator.getTool( selection.getToolType(), selection.getToolId() );
+    Tool tool = toolCoordinator.getTool( selection.getToolId() );
     if ( tool == null )
-      throw new HandlerAlertException( "Unknown tool. id = " + selection.getToolId() + " type = " + selection.getToolType(), message.getId() );
-    
-    if ( !tool.allowDeepLink( deepstate ) )
-      throw new HandlerAlertException( "Selected tool doesn't support deep linking. id = " + selection.getToolId() + " type = " + selection.getToolType(), message.getId() );
+      throw new HandlerAlertException( "Unknown tool. id = " + selection.getToolId(), message.getId() );
 
-    // Do we need to create a resource?
-    ToolResourceKey trkey = null;
-    if ( tool.getToolInformation().getInstantiationType() == ToolInstantiationType.MULTITON )
+    String effectiveFacetId = selection.getToolFacetId();
+    if ( effectiveFacetId == null )
+      effectiveFacetId = tool.getDefaultFacetId();
+    
+    if ( effectiveFacetId == null )
+      throw new HandlerAlertException( "No tool facet id specified and no default available.", message.getId() );
+
+    ToolFacet tf = toolCoordinator.getToolFacet( selection.getToolId(), effectiveFacetId );
+    
+    if ( !tool.allowDeepLink( effectiveFacetId, deepstate ) )
+      throw new HandlerAlertException( "Selected facet of tool doesn't support deep linking. id = " + selection.getToolId() + " facet = " + selection.getToolFacetId(), message.getId() );
+
+    ToolInstantiationLevel level = tf.instantiationLevel();
+    
+    // Do we need to create a tool resource?
+    String toolResourceId = null;
+    if ( level == ToolInstantiationLevel.TOOL_RESOURCE    )
     {
-      trkey = ToolResourceKey.generate();
-      ToolResourceRecord trr = new ToolResourceRecord( trkey.getResourceId() );
-      trr.setToolName( selection.getToolId() );
-      trr.setToolType( selection.getToolType() );
-      trr.setPlatformContext( null );
-      trr.setPlatformLinkingResource( null );
-      trr.setPlatformResource( null );
-      ToolResourceRecordEntry trentry = toolCoordinator.getToolResourceStore().get( trkey, true );
-      trentry.setRecord( trr );
-      toolCoordinator.getToolResourceStore().update( trentry );
+      toolResourceId = UUID.randomUUID().toString();
+      // register this ID with the tool so it can create
+      // and store appropriate data.
+      if ( !tool.createToolResource( toolResourceId, effectiveFacetId, deepstate ) )
+        throw new HandlerAlertException( "Selected facet of tool failed to create new resource.  id = " + selection.getToolId() + " facet = " + selection.getToolFacetId(), message.getId() );
     }
     
     
@@ -205,17 +211,26 @@ public class DeepLinkingEndpoint extends ToolEndpoint
 
     ArrayList<LtiResourceLink> reslinks = new ArrayList<>();
     LtiResourceLink reslink = new LtiResourceLink();
-    reslink.setTitle( selection.getResourceTitle() );
-    reslink.setText( selection.getResourceDescription() );
+    reslink.setTitle( selection.getToolResourceTitle() );
+    reslink.setText( selection.getToolResourceDescription() );
     reslink.setUrl( toolCoordinator.getLaunchUrl() );
-    reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_name", selection.getToolId() );
-    reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_type", selection.getToolType() );
-    if ( trkey != null )
-      reslink.putCustom( "digles.leedsbeckett.ac.uk#resource_id", trkey.getResourceId() );
+    reslink.setIframe( tool.getDeepLinkingIFrameOptions() );
+    reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_name",  selection.getToolId()      );
+    reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_facet", selection.getToolFacetId() );
+    // For most instantiation levels the tool will know what
+    // to give the user on launch based on standard LTI claims
+    // such as the platform, the course, the platform resource
+    // etc. However, for the TOOL_RESOURCE level the deep link
+    // needs a custom claim that identifies the tool's resource
+    // which should be shown. This will be passed to the tool
+    // facet which will decide how to interpret it.
+    if ( level == ToolInstantiationLevel.TOOL_RESOURCE )
+      reslink.putCustom( "digles.leedsbeckett.ac.uk#tool_resource_id", toolResourceId );      
     reslinks.add( reslink );
     deepmessage.addClaim( "https://purl.imsglobal.org/spec/lti-dl/claim/content_items", reslinks );       
 
     String jwt = deepmessage.build();
+    logger.log(Level.INFO, "JWT = {0}", jwt);
     sendToolMessage( session, new ToolMessage( message.getId(), DeepServerMessageName.Jwt, jwt ) );    
   }
 

@@ -29,12 +29,13 @@ import java.io.Serializable;
 public class ToolLaunchState implements Serializable
 {
   /**
-   * Many users (many states) may reference the same resource. It is 
-   * important that it doesn't hold a reference to the resource. So, it 
+   * Many users (many states) may reference the same platform resource. It is 
+   * important that it doesn't hold a reference to the resource object. So, it 
    * holds a unique key to the resource. The resources themselves are
    * put in a different cache.
    */
-  private PlatformResourceKey resourceKey;
+  private PlatformResourceKey platformResourceKey;
+  private String toolResourceId;
   
   private String personId;
   private String personName;
@@ -43,16 +44,28 @@ public class ToolLaunchState implements Serializable
   private String relativeWebSocketUri;
   protected boolean allowedToConfigure = false;
 
-  public PlatformResourceKey getResourceKey()
+  public PlatformResourceKey getPlatformResourceKey()
   {
-    return resourceKey;
+    return platformResourceKey;
   }
 
-  public void setResourceKey( PlatformResourceKey resourceKey )
+  public void setPlatformResourceKey( PlatformResourceKey platformResourceKey )
   {
-    this.resourceKey = resourceKey;
+    this.platformResourceKey = platformResourceKey;
   }
 
+  public String getToolResourceId()
+  {
+    return toolResourceId;
+  }
+
+  public void setToolResourceId( String toolResourceId )
+  {
+    this.toolResourceId = toolResourceId;
+  }
+
+  
+  
   public String getPersonId()
   {
     return personId;
@@ -104,7 +117,7 @@ public class ToolLaunchState implements Serializable
   }
 
   /**
-   * Is the user connected to this state object allowed to manage the resource?
+   * Is the user connected to this state object allowed to configure the tool?
    *
    * @return Is allowed?
    */
@@ -116,7 +129,7 @@ public class ToolLaunchState implements Serializable
   /**
    * Simple setter.
    *
-   * @param allowedToConfigure Is the user allowed to manage the resource.
+   * @param allowedToConfigure Is the user allowed to configure the tool.
    */
   public void setAllowedToConfigure( boolean allowedToConfigure )
   {

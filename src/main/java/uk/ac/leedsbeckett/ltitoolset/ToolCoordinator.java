@@ -63,9 +63,7 @@ import uk.ac.leedsbeckett.lti.registration.LtiToolConfigurationCustomParameters;
 import uk.ac.leedsbeckett.lti.registration.LtiToolConfigurationMessage;
 import uk.ac.leedsbeckett.lti.registration.LtiToolRegistration;
 import uk.ac.leedsbeckett.lti.state.LtiStateStore;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFunctionality;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolInformation;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolProperties;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolSetMapping;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelBackgroundWorker;
@@ -80,6 +78,7 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.LtiBackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.BlackboardBackchannelKey;
+import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExchanger;
 import uk.ac.leedsbeckett.ltitoolset.config.LtiConfigurationImpl;
 import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfigurationStore;
@@ -88,15 +87,15 @@ import uk.ac.leedsbeckett.ltitoolset.config.RegistrationConfigurationStore;
 import uk.ac.leedsbeckett.ltitoolset.config.ToolConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingTool;
 import uk.ac.leedsbeckett.ltitoolset.jwks.JwksStore;
-import uk.ac.leedsbeckett.ltitoolset.resources.ToolResourceStore;
 import uk.ac.leedsbeckett.ltitoolset.servlet.AutoRegServlet;
+import uk.ac.leedsbeckett.ltitoolset.servlet.BlobExchangeServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolJwksServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLaunchServlet;
 import uk.ac.leedsbeckett.ltitoolset.servlet.ToolLoginServlet;
-import uk.ac.leedsbeckett.ltitoolset.websocket.MultitonToolEndpoint;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecord;
 import uk.ac.leedsbeckett.ltitoolset.websocket.WebSocketPinger;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFacet;
 
 /**
  * There is a one to one relationship between instances of this and 
@@ -108,7 +107,7 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.WebSocketPinger;
  * 
  * @author maber01
  */
-@HandlesTypes( {ToolMapping.class, ToolSetMapping.class} )
+@HandlesTypes( {ToolProperties.class, ToolSetMapping.class} )
 public class ToolCoordinator implements ServletContainerInitializer, BackchannelOwner
 {
   static final Logger logger = Logger.getLogger( ToolCoordinator.class.getName() );
@@ -149,8 +148,10 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
 
   private String contextPath;
   
-  private final HashMap<ToolKey,Tool> toolMap = new HashMap<>();  
-  private final HashMap<ToolKey,ToolMapping> toolMappingMap = new HashMap<>();  
+  private final HashMap<String,Tool>                      toolMap = new HashMap<>();  
+  private final HashMap<String,ToolProperties>  toolPropertiesMap = new HashMap<>();  
+  private final HashMap<ToolFacetKey,ToolFacet>      toolFacetMap = new HashMap<>();  
+
   private LtiConfigurationImpl lticonfig;
   private final ToolConfiguration toolconfig = new ToolConfiguration();
   private LtiStateStore<ToolSetLtiState> ltistatestore;
@@ -163,7 +164,9 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   private PrivateKey privateKey;
   
   // WebSocket Endpoint related stuff
-  private final HashMap<PlatformResourceKey,HashMap<String,ToolEndpointSessionRecord>> wssessionlistmap = new HashMap<>();
+  private final Object wsSessionMappingSync = new Object();
+  private final HashMap<PlatformResourceKey,HashMap<String,ToolEndpointSessionRecord>> wsSessionMappedByPlatformResource = new HashMap<>();
+  private final HashMap<String,HashMap<String,ToolEndpointSessionRecord>> wsSessionMappedByToolResource = new HashMap<>();
   private final HashMap<String,ToolEndpointSessionRecord> allWsSessions = new HashMap<>();
   OpenSessionPredicate opensessionpredicate = new OpenSessionPredicate();
   private final WebSocketPinger wspinger = new WebSocketPinger();
@@ -180,9 +183,9 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   private PlatformConfigurationStore platformConfigurationStore;
   private RegistrationConfigurationStore registrationConfigurationStore;
 
-  private ToolResourceStore toolResourceStore;
-  private DeepLinkingTool deepLinkingTool = new DeepLinkingTool();
+  private final DeepLinkingTool deepLinkingTool = new DeepLinkingTool();
   
+  private final BlobExchanger blobEx = new BlobExchanger();
   
   /**
    * A service record in the META-INF resource of the API jar file fill ensure
@@ -229,7 +232,6 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     
     initRegAndPlatformConfig( ctx );
     initJkwsStore( ctx );
-    initToolResourceStore( ctx );
     initLtiConfiguration( ctx );
     initLtiStateStore();
     initServiceKeyPairs();
@@ -257,7 +259,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     for ( Class<?> cl : c )
     {
       logger.log( Level.INFO, "My initalizer found this class: {0}", cl.getName() );
-      processToolMapping( cl, cl.getAnnotationsByType( ToolMapping.class ), ctx );
+      processToolProperties( cl, cl.getAnnotationsByType( ToolProperties.class ), ctx );
       processToolSetMapping( cl, cl.getAnnotationsByType( ToolSetMapping.class ) );
     }    
   }
@@ -266,19 +268,13 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    * Process one of the classes that were scanned.
    * 
    * @param clasz The class to examine.
-   * @param mappings The ToolMapping annotations, if any, that were found.
+   * @param aProps The ToolFacet annotations, if any, that were found.
    * @param ctx The servlet context.
    */
-  private void processToolMapping( Class<?> clasz, ToolMapping[] mappings, ServletContext ctx )
+  private void processToolProperties( Class<?> clasz, ToolProperties[] aProps, ServletContext ctx )
   {
-    if ( mappings == null || mappings.length == 0 )
+    if ( aProps == null || aProps.length != 1 )
       return;
-    
-    if ( mappings.length > 1 )
-    {
-      logger.log( Level.SEVERE, "This class, {0} has multiple ToolMapping annotations.", clasz.getName() );
-      return;
-    }
     
     if ( !Tool.class.isAssignableFrom( clasz ) )
     {
@@ -286,16 +282,23 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
       return;
     }
     
-    ToolMapping mapping = mappings[0];
-    
+    ToolProperties properties = aProps[0];    
     try
     {
-      ToolKey key = new ToolKey( mapping );
       Tool tool = (Tool) clasz.getDeclaredConstructor().newInstance();
       if ( tool.usesBlackboardRest() )
         usingBlackboardRest = true;
-      toolMap.put( key, tool );
-      toolMappingMap.put( key, mapping );
+      toolMap.put( properties.id(), tool );
+      toolPropertiesMap.put( properties.id(), properties );
+
+      ToolFacet[] facets = clasz.getAnnotationsByType( ToolFacet.class );
+      logger.log(Level.FINE, "Found {0} facets.", facets.length);
+      for ( ToolFacet facet : facets )
+      {
+        ToolFacetKey facetkey = new ToolFacetKey( properties, facet );
+        toolFacetMap.put( facetkey, facet );
+      }
+      
       tool.init( ctx );
     }
     catch ( IllegalAccessException | IllegalArgumentException | InstantiationException | NoSuchMethodException | SecurityException | InvocationTargetException ex )
@@ -343,12 +346,15 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     ServletRegistration loginReg  = ctx.addServlet( "ToolLoginServlet",   ToolLoginServlet.class );
     ServletRegistration launchReg = ctx.addServlet( "ToolLaunchServlet",  ToolLaunchServlet.class );
     ServletRegistration jwksReg   = ctx.addServlet( "ToolJwksServlet",    ToolJwksServlet.class );
-    ServletRegistration ariReg    = ctx.addServlet("AutoRegInitServlet", AutoRegServlet.class );
+    ServletRegistration ariReg    = ctx.addServlet( "AutoRegInitServlet", AutoRegServlet.class );
+    ServletRegistration blobexReg = ctx.addServlet( "BlobExchangeServlet", BlobExchangeServlet.class );
     
-    loginReg.addMapping(  toolSetMapping.loginUrl()       );
-    launchReg.addMapping( toolSetMapping.launchUrl()      );
-    jwksReg.addMapping(   toolSetMapping.jwksUrl()        );
-    ariReg.addMapping(    toolSetMapping.autoRegUrl() );
+    loginReg.addMapping(  toolSetMapping.loginUrl()        );
+    launchReg.addMapping( toolSetMapping.launchUrl()       );
+    jwksReg.addMapping(   toolSetMapping.jwksUrl()         );
+    ariReg.addMapping(    toolSetMapping.autoRegUrl()      );
+    blobexReg.addMapping( toolSetMapping.blobExchangeUrl() );
+    blobEx.setServletUrl( toolSetMapping.blobExchangeUrl() );
   }
   
   /**
@@ -357,21 +363,21 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    * @param key The key.
    * @return The tool mapping or null;
    */
-  public ToolMapping getToolMapping( ToolKey key )
+  public ToolFacet getToolFacet( ToolFacetKey key )
   {
-    return toolMappingMap.get( key );
+    return toolFacetMap.get( key );
   }
   
   /**
    * Find a tool mapping object based on type and id.
    * 
-   * @param type The tool type.
-   * @param id The tool id.
+   * @param toolId The ID of the tool.
+   * @param facetId The ID of the facet in the tool.
    * @return The tool mapping or null;
    */
-  public ToolMapping getToolMapping( String type, String id )
+  public ToolFacet getToolFacet( String toolId, String facetId )
   {
-    return toolMappingMap.get( new ToolKey( type, id ) );
+    return getToolFacet( new ToolFacetKey( toolId, facetId ) );
   }
   
   /**
@@ -379,11 +385,26 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    * 
    * @return A set of keys to the tools.
    */
-  public Set<ToolKey> getToolKeys()
+  public Set<ToolFacetKey> getToolFacetKeys()
   {
-    return this.toolMap.keySet();
+    return this.toolFacetMap.keySet();
   }
   
+  /**
+   * Find a tool object based on type and id.
+   * 
+   * @param id The tool id.
+   * @return The tool mapping or null;
+   */
+  public Tool getTool( String id )
+  {
+    return toolMap.get( id );
+  }
+
+  public String[] getToolIds()
+  {
+    return toolMap.keySet().toArray( String[]::new );
+  }
   
   /**
    * Get the deep linking tool.
@@ -400,29 +421,11 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     return toolSetMapping.deepLinkingUrl();
   }
   
-  /**
-   * Find a tool object based on a toolkey composed of type and name.
-   * 
-   * @param key The key.
-   * @return The tool mapping or null;
-   */
-  public Tool getTool( ToolKey key )
-  {
-    return toolMap.get( key );
-  }
   
-  /**
-   * Find a tool object based on type and id.
-   * 
-   * @param type The tool type.
-   * @param id The tool id.
-   * @return The tool mapping or null;
-   */
-  public Tool getTool( String type, String id )
+  public BlobExchanger getBlobExchanger()
   {
-    return toolMap.get( new ToolKey( type, id ) );
+    return blobEx;
   }
-
 
   /**
    * Set up an LTI state store
@@ -581,16 +584,6 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   public JwksStore getJwksStore()
   {
     return jwksStore;
-  }
-  
-  private void initToolResourceStore( ServletContext context )
-  {
-    toolResourceStore = new ToolResourceStore( Paths.get( context.getRealPath( "/WEB-INF/resources/" ) ) );
-  }
-  
-  public ToolResourceStore getToolResourceStore()
-  {
-    return toolResourceStore;
   }
   
   public RegistrationConfigurationStore getRegistrationConfigurationStore()
@@ -859,39 +852,50 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   {
     sb.append( "    sid = " )
       .append( record.getEndpoint().getStateid() )
-      .append( " Resource Key = " )
-      .append( record.getEndpoint().getToolState().getResourceKey() )
+      .append( " Platform Resource Key = " )
+      .append( record.getEndpoint().getToolState().getPlatformResourceKey() )
       .append( "\n" );
   }
   
   private void logWsSessions()
   {
-    StringBuilder sb = new StringBuilder();
-    synchronized ( wssessionlistmap )
+    synchronized ( wsSessionMappingSync )
     {
+      StringBuilder sb = new StringBuilder();
       sb.append( "All Sessions: \n" );
       for ( String sid : allWsSessions.keySet() )
       {
         ToolEndpointSessionRecord record = allWsSessions.get( sid ); 
         appendSessionLog( sb, record );
       }
-      sb.append( "Sessions by resource key: \n" );
-      for ( PlatformResourceKey key : wssessionlistmap.keySet() )
-     {
-        sb.append( " Resource key: " ).append( key.toString() ).append( "\n" );
-        HashMap<String,ToolEndpointSessionRecord> map = wssessionlistmap.get( key );
+    
+      sb.append( "Sessions by platform resource key: \n" );
+      for ( PlatformResourceKey key : wsSessionMappedByPlatformResource.keySet() )
+      {
+        sb.append( " Platform Resource key: " ).append( key.toString() ).append( "\n" );
+        HashMap<String,ToolEndpointSessionRecord> map = wsSessionMappedByPlatformResource.get( key );
         for ( ToolEndpointSessionRecord record : map.values() )
           appendSessionLog( sb, record );
       }
-    }    
-    logger.fine( sb.toString() );
+      
+      sb.append( "Sessions by tool resource key: \n" );
+      for ( String trkey : wsSessionMappedByToolResource.keySet() )
+      {
+        sb.append( " Tool Resource key: " ).append( trkey ).append( "\n" );
+        HashMap<String,ToolEndpointSessionRecord> map = wsSessionMappedByToolResource.get( trkey );
+        for ( ToolEndpointSessionRecord record : map.values() )
+          appendSessionLog( sb, record );
+      }
+      
+      logger.fine( sb.toString() );
+    }      
   }
   
   
   /**
    * Keep track of all web socket sessions. For ping-pong but also 
    * so that may be needed so that messages can be multicast to all client 
-   * endpoints associated with a specific resource.
+   * endpoints associated with a specific platform resource.
    * 
    * @param endpoint The endpoint that has just been opened.
    * @param session The session to add.
@@ -903,26 +907,42 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     if ( endpoint.getToolState() == null )
       throw new IllegalArgumentException( "Endpoint toolstate was null" );
     
-    synchronized ( wssessionlistmap )
+    synchronized ( wsSessionMappingSync )
     {
       wspinger.addSession( session );
       ToolEndpointSessionRecord tesr = new ToolEndpointSessionRecord( endpoint, session );
       allWsSessions.put( endpoint.getStateid(), tesr );
-
-      if ( endpoint instanceof MultitonToolEndpoint )
+    
+      if ( endpoint.indexByPlatformResource() )
       {
-        MultitonToolEndpoint mendpoint = (MultitonToolEndpoint)endpoint;
-        PlatformResourceKey key = mendpoint.getToolState().getResourceKey();
-        if ( mendpoint.getToolState().getResourceKey() == null )
-          throw new IllegalArgumentException( "Endpoint toolstate resource key was null" );
-        HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
-        if ( set == null )
+        PlatformResourceKey key = endpoint.getToolState().getPlatformResourceKey();
+        if ( key != null )
         {
-          set = new HashMap<>();
-          wssessionlistmap.put( key, set );
+          HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByPlatformResource.get( key );
+          if ( set == null )
+          {
+            set = new HashMap<>();
+            wsSessionMappedByPlatformResource.put( key, set );
+          }
+          set.put(endpoint.getStateid(), tesr );
         }
-        set.put(mendpoint.getStateid(), tesr );
       }
+    
+      if ( endpoint.indexByToolResource() )
+      {
+        String toolResourceId = endpoint.getToolState().getToolResourceId();
+        if ( toolResourceId != null )
+        {
+          HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByToolResource.get( toolResourceId );
+          if ( set == null )
+          {
+            set = new HashMap<>();
+            wsSessionMappedByToolResource.put( toolResourceId, set );
+          }
+          set.put(endpoint.getStateid(), tesr );
+        }
+      }
+    
       if ( logger.isLoggable( Level.FINE ) )
         logWsSessions();
     }
@@ -935,20 +955,32 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    */
   public void removeWsSession( ToolEndpoint endpoint )
   {
-    synchronized ( wssessionlistmap )
+    synchronized ( wsSessionMappingSync )
     {
       ToolEndpointSessionRecord tesr = allWsSessions.get( endpoint.getStateid() );
       if ( tesr == null )
         return;
       wspinger.removeSession( tesr.getSession() );
       allWsSessions.remove( endpoint.getStateid() );
-      if ( endpoint instanceof MultitonToolEndpoint )
+      if ( endpoint.indexByPlatformResource() )
       {
-        MultitonToolEndpoint mendpoint = (MultitonToolEndpoint)endpoint;      
-        PlatformResourceKey key = mendpoint.getToolState().getResourceKey();
-        HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
-        if ( set != null )
-          set.remove( mendpoint.getStateid() );
+        PlatformResourceKey key = endpoint.getToolState().getPlatformResourceKey();
+        if ( key != null )
+        {
+          HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByPlatformResource.get( key );
+          if ( set != null )
+            set.remove( endpoint.getStateid() );
+        }
+      }
+      if ( endpoint.indexByToolResource() )
+      {
+        String trid = endpoint.getToolState().getToolResourceId();
+        if ( trid != null )
+        {
+          HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByToolResource.get( trid );
+          if ( set != null )
+            set.remove( endpoint.getStateid() );
+        }
       }
       if ( logger.isLoggable( Level.FINE ) )
         logWsSessions();
@@ -965,10 +997,10 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    */
   public Set<Session> getWsSessions( ToolEndpointSessionRecordPredicate predicate )
   {
-    StringBuilder sb = new StringBuilder();
-    sb.append( "Debugging output: \n" );
-    synchronized ( wssessionlistmap )
+    synchronized ( wsSessionMappingSync )
     {
+      StringBuilder sb = new StringBuilder();
+      sb.append( "Debugging output: \n" );
       HashSet<Session> sessions = new HashSet<>();
       for ( ToolEndpointSessionRecord record : allWsSessions.values() )
       {
@@ -997,13 +1029,13 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
    * @param key The key of the specific platform resource.
    * @return The set.
    */
-  public Set<Session> getWsSessionsForResource( PlatformResourceKey key )
+  public Set<Session> getWsSessionsForPlatformResource( PlatformResourceKey key )
   {
-    StringBuilder sb = new StringBuilder();
-    sb.append( "Debugging output: \n" );
-    synchronized ( wssessionlistmap )
+    synchronized ( wsSessionMappingSync )
     {
-      HashMap<String,ToolEndpointSessionRecord> set = wssessionlistmap.get( key );
+      StringBuilder sb = new StringBuilder();
+      sb.append( "Debugging output: \n" );
+      HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByPlatformResource.get( key );
       if ( set == null ) return null;
       HashSet<Session> sessions = new HashSet<>();
       for ( ToolEndpointSessionRecord record : set.values() )
@@ -1020,6 +1052,39 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
       return sessions;
     }  
   }
+
+  /**
+   * Get a set of web socket sessions that have been registered against
+   * a specific tool resource. Probably the intention is to multicast
+   * a message to them all.
+   * 
+   * @param toolResourceId The ID of the specific tool resource.
+   * @return The set.
+   */
+  public Set<Session> getWsSessionsForToolResource( String toolResourceId )
+  {
+    synchronized ( wsSessionMappingSync )
+    {
+      StringBuilder sb = new StringBuilder();
+      sb.append( "Debugging output: \n" );
+      HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByToolResource.get( toolResourceId );
+      if ( set == null ) return null;
+      HashSet<Session> sessions = new HashSet<>();
+      for ( ToolEndpointSessionRecord record : set.values() )
+      {
+        sb.append( "Checking: \n" );
+        this.appendSessionLog( sb, record );
+        if ( opensessionpredicate.test( record.getSession() ) )
+        {
+          sb.append( "ADDED\n" );
+          sessions.add( record.getSession() );
+        }
+      }
+      logger.fine( sb.toString() );
+      return sessions;
+    }  
+  }
+
   
   /**
    * A handy utility for use with Set.removeIf()

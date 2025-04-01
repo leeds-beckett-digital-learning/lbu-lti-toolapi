@@ -14,8 +14,8 @@ import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
- * A subclass of Tool for deep linking but is not annotated as a tool for launching as a
- * resource. Used when processing a deep linking request message as distinct from a launch
+ * A subclass of Tool for deep linking but is not annotated as a tool for launching
+ * Used when processing a deep linking request message as distinct from a launch
  * message.
  * 
  * @author jon
@@ -33,8 +33,16 @@ public class DeepLinkingTool extends Tool
     return new DeepLinkingLaunchState();
   }
 
+  /** 
+   * It would be silly to deep link to the deep linking tool so this
+   * returns false.
+   * 
+   * @param facetID The ID of the facet - ignored.
+   * @param deepstate Also ignored.
+   * @return Always false.
+   */
   @Override
-  public boolean allowDeepLink( DeepLinkingLaunchState deepstate )
+  public boolean allowDeepLink( String facetID, DeepLinkingLaunchState deepstate )
   {
     return false;
   }

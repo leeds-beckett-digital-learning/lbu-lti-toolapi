@@ -17,20 +17,10 @@ package uk.ac.leedsbeckett.ltitoolset.deeplinking;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
-import uk.ac.leedsbeckett.lti.messages.LtiMessageDeepLinkingResponse;
-import uk.ac.leedsbeckett.lti.state.LtiStateStore;
-import uk.ac.leedsbeckett.lti.resourcelink.LtiResourceLink;
-import uk.ac.leedsbeckett.ltitoolset.Tool;
-import uk.ac.leedsbeckett.ltitoolset.ToolKey;
-import uk.ac.leedsbeckett.ltitoolset.ToolSetLtiState;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolMapping;
-import uk.ac.leedsbeckett.ltitoolset.page.PageSupport;
 import uk.ac.leedsbeckett.ltitoolset.page.ToolPageSupport;
 
 /**

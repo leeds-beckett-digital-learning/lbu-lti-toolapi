@@ -17,14 +17,20 @@ package uk.ac.leedsbeckett.ltitoolset;
 
 import uk.ac.leedsbeckett.ltitoolset.resources.PlatformResourceKey;
 import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.servlet.ServletContext;
 import javax.websocket.server.ServerEndpoint;
 import uk.ac.leedsbeckett.lti.claims.LtiClaims;
 import uk.ac.leedsbeckett.lti.claims.LtiRoleClaims;
-import uk.ac.leedsbeckett.ltitoolset.annotations.ToolInformation;
+import uk.ac.leedsbeckett.lti.resourcelink.LtiResourceLinkIFrame;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFacet;
+import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.ToolInformation;
+import uk.ac.leedsbeckett.ltitoolset.annotations.ToolProperties;
 import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingLaunchState;
+import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.ToolFacetInformation;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
@@ -36,7 +42,9 @@ public abstract class Tool
 {
   static final Logger logger = Logger.getLogger( Tool.class.getName() );
 
-  ToolInformation toolInformation = new ToolInformation();
+  ToolProperties toolProperties;
+  ToolFacet[] toolFacets;
+  //ToolInformation toolInformation = new ToolInformation();
 
   
   /**
@@ -45,7 +53,10 @@ public abstract class Tool
    */
   public Tool()
   {
-    toolInformation.scanTool( this );
+    ToolProperties[] allProperties = this.getClass().getAnnotationsByType( ToolProperties.class );
+    if ( allProperties.length == 1 )
+      toolProperties = allProperties[0];
+    toolFacets = this.getClass().getAnnotationsByType( ToolFacet.class );
   }
 
   /**
@@ -58,9 +69,20 @@ public abstract class Tool
   
   public String getTitle()
   {
-    return toolInformation.getTitle();
+    if ( toolProperties == null ) return "unknown";
+    return toolProperties.title();
   }
   
+  public String getDefaultFacetId()
+  {
+    if ( toolProperties == null ) return null;
+    return toolProperties.defaultFacetId();
+  }
+  
+  public ToolFacet[] getFacets()
+  {
+    return toolFacets;
+  }
   
   /**
    * Each tool must know how to create a ToolLaunchState using its preferred
@@ -88,8 +110,11 @@ public abstract class Tool
     if ( state.getPlatformName() != null && lticlaims.getLtiResource() != null )
     {
       PlatformResourceKey rk = new PlatformResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
-      toolstate.setResourceKey( rk );
+      toolstate.setPlatformResourceKey( rk );
     }
+    if ( state.getToolResourceId() != null )
+      toolstate.setToolResourceId( state.getToolResourceId() );
+    
     Annotation a = getEndpointClass().getAnnotation( ServerEndpoint.class );
     if ( a != null && a instanceof ServerEndpoint )
     {
@@ -108,7 +133,17 @@ public abstract class Tool
     }
   }
   
-  public abstract boolean allowDeepLink( DeepLinkingLaunchState deepstate );
+  public abstract boolean allowDeepLink( String facetID, DeepLinkingLaunchState deepstate );
+  
+  public LtiResourceLinkIFrame getDeepLinkingIFrameOptions()
+  {
+    return null;
+  }
+
+  public boolean createToolResource( String toolResourceId, String facetId, DeepLinkingLaunchState dlls )
+  {
+    return false;
+  }
   
   public abstract Class<? extends ToolEndpoint> getEndpointClass();
   
@@ -125,8 +160,25 @@ public abstract class Tool
   }
 
   
-  public final ToolInformation getToolInformation()
+  public final ToolInformation getDeepLinkingToolInformation( DeepLinkingLaunchState deepstate )
   {
-    return toolInformation;
+    ArrayList<ToolFacetInformation> allowedFacets = new ArrayList<>();
+    
+    // Check facets
+    for ( ToolFacet tf : toolFacets )
+    {
+      logger.log( Level.INFO, "Tool ID {0}, facet ID {1}", new Object[] {getTitle(), tf.id()} );
+      if ( allowDeepLink( tf.id(), deepstate ) )
+      {
+        logger.log( Level.INFO, "Allowed" );
+        allowedFacets.add( new ToolFacetInformation( tf.id(), tf.title(), tf.instantiationLevel(), tf.launchURI() ) );
+      }
+    }
+    
+    return new ToolInformation( 
+            toolProperties.id(), 
+            toolProperties.title(),
+            allowedFacets.toArray(ToolFacetInformation[]::new)
+    );
   }
 }

@@ -10,14 +10,33 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation used to describe a tool's functionality.
+ * An annotation used to describe a tool.
+ * 
  * @author jon
  */
 @Retention( RetentionPolicy.RUNTIME )
 @Target( ElementType.TYPE )
-public @interface ToolFunctionality
+public @interface ToolProperties
 {
-  public ToolInstantiationType instantiationType();
-  public boolean instantiateOnDeepLinking() default false;
-  public boolean instantiateOnLaunching() default false;
+  /**
+   * Tool name that maps to the annotated tool.
+   * 
+   * @return The name.
+   */
+  public String id();
+
+  /**
+   * The human readable title.
+   * 
+   * @return The title.
+   */
+  public String title();
+
+  /**
+   * Which facet to use if none is specified.
+   * 
+   * @return The ID.
+   */
+  public String defaultFacetId();
+  
 }
