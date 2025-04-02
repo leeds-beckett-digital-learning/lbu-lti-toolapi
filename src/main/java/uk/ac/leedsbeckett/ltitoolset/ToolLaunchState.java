@@ -34,6 +34,8 @@ public class ToolLaunchState implements Serializable
    * holds a unique key to the resource. The resources themselves are
    * put in a different cache.
    */
+  private String toolFacetId;
+  private String platformId;
   private PlatformResourceKey platformResourceKey;
   private String toolResourceId;
   
@@ -44,6 +46,26 @@ public class ToolLaunchState implements Serializable
   private String relativeWebSocketUri;
   protected boolean allowedToConfigure = false;
 
+  public String getToolFacetId()
+  {
+    return toolFacetId;
+  }
+
+  public void setToolFacetId( String toolFacetId )
+  {
+    this.toolFacetId = toolFacetId;
+  }
+
+  public String getPlatformId()
+  {
+    return platformId;
+  }
+
+  public void setPlatformId( String platformId )
+  {
+    this.platformId = platformId;
+  }
+  
   public PlatformResourceKey getPlatformResourceKey()
   {
     return platformResourceKey;

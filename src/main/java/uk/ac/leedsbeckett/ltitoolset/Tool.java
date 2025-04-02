@@ -103,14 +103,19 @@ public abstract class Tool
    */
   public void initToolLaunchState( PlatformConfiguration platformConfiguration, ToolLaunchState toolstate, LtiClaims lticlaims, ToolSetLtiState state )
   {
+    toolstate.setToolFacetId( state.getToolFacetId() );
     toolstate.setPersonId( state.getPersonId() );
     toolstate.setPersonName( state.getPersonName() );
     toolstate.setCourseId( lticlaims.getLtiContext().getId() );
     toolstate.setCourseTitle( lticlaims.getLtiContext().getLabel() );
-    if ( state.getPlatformName() != null && lticlaims.getLtiResource() != null )
+    if ( state.getPlatformName() != null )
     {
-      PlatformResourceKey rk = new PlatformResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
-      toolstate.setPlatformResourceKey( rk );
+      toolstate.setPlatformId( state.getPlatformName() );
+      if ( lticlaims.getLtiResource() != null )
+      {
+        PlatformResourceKey rk = new PlatformResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
+        toolstate.setPlatformResourceKey( rk );
+      }
     }
     if ( state.getToolResourceId() != null )
       toolstate.setToolResourceId( state.getToolResourceId() );
