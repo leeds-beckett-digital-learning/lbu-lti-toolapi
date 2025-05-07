@@ -4,14 +4,21 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.websocket;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URL;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import javax.websocket.DecodeException;
+import javax.websocket.SendHandler;
+import javax.websocket.SendResult;
 import javax.websocket.Session;
 import uk.ac.leedsbeckett.lti.LtiException;
 import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
@@ -30,7 +37,7 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandle
  * 
  * @author jon
  */
-public abstract class ToolEndpoint implements BackchannelOwner
+public abstract class ToolEndpoint implements SendHandler, BackchannelOwner
 {
   static final Logger logger = Logger.getLogger(ToolEndpoint.class.getName() );
 
@@ -118,6 +125,12 @@ public abstract class ToolEndpoint implements BackchannelOwner
 
   private static long serial = 0x1000;
   
+  // We are using default configuration for instantiation which means
+  // there should be one instance per session and onOpen should only be
+  // called once for an instance of this class. So, it should be safe
+  // to store the session here.
+  Session session = null;
+  
   String uniqueid;
   String stateid;
   ToolSetLtiState state;
@@ -125,8 +138,12 @@ public abstract class ToolEndpoint implements BackchannelOwner
   protected ToolCoordinator toolCoordinator;
 
   String platformHost;
-  OAuth2Token platformAuthToken=null;
 
+  final LinkedList<ToolMessageIncomingParts> pendingMessages = new LinkedList<>();
+  final LinkedList<ToolMessageIncomingParts> pendingRemoval = new LinkedList<>();
+
+  final LinkedList<Object> messageSendQueue = new LinkedList<>();
+  
   public ToolEndpoint()
   {
     uniqueid = Long.toHexString( serial++ );
@@ -200,6 +217,9 @@ public abstract class ToolEndpoint implements BackchannelOwner
    */
   public void onOpen(Session session) throws IOException
   {
+    if ( this.session != null ) throw new IOException( "onOpen was called more than once on this ToolEndpoint instance." );
+    this.session = session;
+    
     toolCoordinator = ToolCoordinator.get( session.getContainer() );
     // If it hasn't already been done for this class, map the handler methods.
     getHandlerMap( this.getClass() );
@@ -255,31 +275,92 @@ public abstract class ToolEndpoint implements BackchannelOwner
     toolCoordinator.removeWsSession( this );
   }
 
-  /**
-   * Subclasses should use 'super' to call this when their own onMessage
-   * method is called. Probably no other processing will be required. This
-   * implementation examines the message and calls the appropriate annotated
-   * handler method.
-   * 
-   * @param session The session this endpoint originated from.
-   * @param message The incoming message from the client that needs processing.
-   * @throws IOException Exception that aborted processing.
-   */
-  public void onMessage(Session session, ToolMessage message) throws IOException
+  public void onMessage(Session session, String text) throws IOException
   {
-    if ( !message.isValid() )
+    try
     {
-      logger.log(Level.SEVERE, "Endpoint received invalid message: {0}", message.getRaw());
-      return;
+      ToolMessageIncomingParts partial = new ToolMessageIncomingParts( text );
+      if ( !partial.isValid() )
+      {
+        logger.log(Level.SEVERE, "Endpoint received invalid message: {0}", text );
+        return;
+      }
+      
+      if ( partial.isAllPartsReceived() )
+      {
+        partial.parsePayload();
+        if ( dispatchMessage( session, partial.getToolMessage() ) )
+          return;
+        logger.log( Level.WARNING, "Did not find handler for message." );        
+      }
+      else
+      {
+        synchronized ( pendingMessages )
+        {
+          pendingMessages.add( partial );
+        }
+      }
     }
-    
-    if ( dispatchMessage( session, message ) )
-      return;
-
-    logger.log( Level.WARNING, "Did not find handler for message." );
+    catch ( DecodeException ex )
+    {
+      logger.log( Level.SEVERE, null, ex );
+    }
   }
-
-
+  
+  public void onMessage(Session session, ByteBuffer bb ) throws IOException
+  {
+    bb.order( ByteOrder.LITTLE_ENDIAN );
+    long id     = Integer.toUnsignedLong( bb.getInt() );
+    logger.log( Level.INFO, "binary message id = {0}", id );
+    int length = bb.getInt();
+    logger.log( Level.INFO, "length = {0}", length );
+    if ( length < 0 || length > (1024*1024*8) )
+      throw new IOException( "Incoming binary data exceeding maximum of 8MB" );
+    // Don't read the data yet - perhaps there is no pending message
+    // that wants it.
+    
+    String placeholder = "binary_" + id;
+    synchronized ( pendingMessages )
+    {
+      // Look for pending incoming message that is waiting for this
+      // binary data.
+      // While we are at it, clear timed out messages.
+      for ( ToolMessageIncomingParts partial : pendingMessages )
+      {
+        if ( partial.isStale() )
+          pendingRemoval.add( partial );
+        else if ( partial.hasPlaceholder( placeholder ) )
+        {
+          // Now we want the data
+          // allocate space
+          byte[] data = new byte[length];
+          // fetch the data
+          bb.get( data );
+          // add to the other message data in the pending message.
+          partial.addBinary( placeholder, data );
+          // Is this message complete now?
+          if ( partial.isAllPartsReceived() )
+          {
+            try
+            {
+              pendingRemoval.add( partial );
+              partial.parsePayload();
+              if ( !dispatchMessage( session, partial.getToolMessage() ) )
+                logger.log( Level.WARNING, "Did not find handler for message." );
+            }
+            catch ( DecodeException ex )
+            {
+              logger.log( Level.SEVERE, null, ex );
+            }
+          }
+        }
+      }
+      for ( ToolMessageIncomingParts partial : pendingRemoval )
+        pendingMessages.remove( partial );
+      pendingRemoval.clear();
+    }    
+  }
+  
   /**
    * Takes an incoming message from the client end of the socket and
    * dispatches it to the right handler method using reflection.
@@ -336,6 +417,65 @@ public abstract class ToolEndpoint implements BackchannelOwner
   }
 
   public abstract void processHandlerAlert( Session session, HandlerAlertException haex ) throws IOException;
+
+
+  private ToolMessageOutgoingParts buildOutgoingParts( ToolMessage tm ) throws DecodeException, JsonProcessingException
+  {
+    return new ToolMessageOutgoingParts( tm );
+  }
+  
+  /**
+   * Send the tool message from this server to the client.
+   * 
+   * @param session The session which should send the message.
+   * @param parts
+   */
+  private void sendToolMessageParts( Session session, ToolMessageOutgoingParts parts )
+  {
+    // You can't queue up multiple messages - there will be an exception
+    // if you try to send one while another is waiting to send or in the middle
+    // of sending.  So, if we want to async send we have to manage a queue.
+    synchronized ( messageSendQueue )
+    {
+      boolean wasEmpty = messageSendQueue.isEmpty();
+      // Perhaps we need to guard against a massive queue forming?
+      
+      // Start by adding new messages to queue
+      this.messageSendQueue.add( parts.getText() );
+      if ( parts.hasBinaryParts() )
+        for ( BinaryPart bp : parts.getBinaryParts() )
+          this.messageSendQueue.add( ByteBuffer.wrap(bp.taggedData ) );
+
+      if ( wasEmpty )
+      {
+        Object first = messageSendQueue.getFirst();
+        if ( first instanceof String )
+          session.getAsyncRemote().sendText( (String)first, this );      
+        else if ( first instanceof ByteBuffer )
+          session.getAsyncRemote().sendBinary( (ByteBuffer)first, this );
+      }
+      // Otherwise there is a message being sent and we need to wait.
+    }
+  }
+
+  @Override
+  public void onResult( SendResult sr )
+  {
+    synchronized ( messageSendQueue )
+    {
+      // the payload just sent must be first in queue - remove it
+      messageSendQueue.removeFirst();
+      // Are there more in queue.?
+      if ( !messageSendQueue.isEmpty() )
+      {
+        Object first = messageSendQueue.getFirst();
+        if ( first instanceof String )
+          session.getAsyncRemote().sendText( (String)first, this );      
+        else if ( first instanceof ByteBuffer )
+          session.getAsyncRemote().sendBinary( (ByteBuffer)first, this );
+      }
+    }
+  }
   
   
   /**
@@ -346,7 +486,17 @@ public abstract class ToolEndpoint implements BackchannelOwner
    */
   public void sendToolMessage( Session session, ToolMessage tm )
   {
-    session.getAsyncRemote().sendObject( tm );    
+    ToolMessageOutgoingParts parts;
+    try
+    {    
+      parts = buildOutgoingParts( tm );
+    }
+    catch ( DecodeException | JsonProcessingException ex )
+    {
+      logger.log( Level.SEVERE, null, ex );
+      return;
+    }
+    sendToolMessageParts( session, parts );
   }
   
   /**
@@ -357,10 +507,20 @@ public abstract class ToolEndpoint implements BackchannelOwner
    */
   public void sendToolMessage( ToolEndpointSessionRecordPredicate predicate, ToolMessage tm )
   {
+    ToolMessageOutgoingParts parts;
+    try
+    {    
+      parts = buildOutgoingParts( tm );
+    }
+    catch ( DecodeException | JsonProcessingException ex )
+    {
+      logger.log( Level.SEVERE, null, ex );
+      return;
+    }
     for ( Session s : toolCoordinator.getWsSessions( predicate ) )
     {
       logger.info( "Telling a client." );
-      s.getAsyncRemote().sendObject( tm );
+      sendToolMessageParts( s, parts );
     }
   }
 
@@ -375,11 +535,22 @@ public abstract class ToolEndpoint implements BackchannelOwner
   {
     if ( !indexByPlatformResource() || toolState.getPlatformResourceKey() == null )
       return;
+
+    ToolMessageOutgoingParts parts;
+    try
+    {    
+      parts = buildOutgoingParts( tm );
+    }
+    catch ( DecodeException | JsonProcessingException ex )
+    {
+      logger.log( Level.SEVERE, null, ex );
+      return;
+    }
     
     for ( Session s : toolCoordinator.getWsSessionsForPlatformResource( toolState.getPlatformResourceKey() ) )
     {
       logger.info( "Telling a client." );
-      s.getAsyncRemote().sendObject( tm );
+      sendToolMessageParts( s, parts );
     }
   }
     
@@ -394,11 +565,22 @@ public abstract class ToolEndpoint implements BackchannelOwner
   {
     if ( !indexByToolResource() || toolState.getToolResourceId() == null )
       return;
-    
+
+    ToolMessageOutgoingParts parts;
+    try
+    {    
+      parts = buildOutgoingParts( tm );
+    }
+    catch ( DecodeException | JsonProcessingException ex )
+    {
+      logger.log( Level.SEVERE, null, ex );
+      return;
+    }
+        
     for ( Session s : toolCoordinator.getWsSessionsForToolResource( toolState.getToolResourceId() ) )
     {
       logger.info( "Telling a client." );
-      s.getAsyncRemote().sendObject( tm );
+      sendToolMessageParts( s, parts );
     }
   }
 }

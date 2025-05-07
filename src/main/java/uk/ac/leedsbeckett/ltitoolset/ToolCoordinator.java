@@ -30,6 +30,7 @@ import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -188,7 +189,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   private final BlobExchanger blobEx = new BlobExchanger();
   
   /**
-   * A service record in the META-INF resource of the API jar file fill ensure
+   * A service record in the META-INF resource of the API jar file will ensure
    * that the web application container (e.g. tomcat) will load this class and
    * call this method.
    * 
@@ -205,6 +206,17 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     // Put this coordinator in a place where servlets can find it
     ctx.setAttribute( this.getClass().getName(), this );
    
+    // log all the init parameters
+    Enumeration<String> e = ctx.getInitParameterNames();
+    logger.info( "Context init parameters..." );
+    while ( e.hasMoreElements() )
+    {
+      String name = e.nextElement();
+      logger.log(Level.INFO, "Init parameter {0} = {1}", new Object[ ]{ name, ctx.getInitParameter( name ) } );
+    }
+    logger.info( "Context init parameters end." );
+    logger.log(Level.INFO, "Context example param = {0}", ctx.getInitParameter( "example" ));
+    
     contextPath = ctx.getContextPath();
     
     // Spec. says that web socket ServerContainer will be found in this attribute:

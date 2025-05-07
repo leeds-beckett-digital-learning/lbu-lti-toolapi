@@ -5,6 +5,7 @@
 package uk.ac.leedsbeckett.ltitoolset.deeplinking;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.UUID;
 import java.util.logging.Level;
@@ -97,20 +98,19 @@ public class DeepLinkingEndpoint extends ToolEndpoint
     logger.log( Level.SEVERE, "Web socket error.", throwable );
   }  
 
-  /**
-   * Simply passes on responsibility for processing to the super-class.
-   * 
-   * @param session The session this endpoint belongs to.
-   * @param message The incoming message from the client end.
-   * @throws IOException Indicates failure to process.
-   */
   @OnMessage
   @Override
-  public void onMessage(Session session, ToolMessage message) throws IOException
+  public void onMessage(Session session, String text) throws IOException
   {
-    super.onMessage( session, message );
+    super.onMessage( session, text );
+  }  
+
+  @OnMessage
+  @Override
+  public void onMessage(Session session, ByteBuffer bb ) throws IOException
+  {
+    super.onMessage( session, bb );
   }
-  
   
   /**
    * Client requested the list of tools/facets that can be instantiated.
