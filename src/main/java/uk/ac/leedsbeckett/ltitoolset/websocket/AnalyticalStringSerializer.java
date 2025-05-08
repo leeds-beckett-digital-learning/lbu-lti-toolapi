@@ -54,7 +54,6 @@ public class AnalyticalStringSerializer extends JsonSerializer<String>
     }
     // If reached here this non-byte array field might clash with
     // a binary placeholder so make a record of it.
-    long id = Long.parseLong( value.substring( 7 ) );
-    analysis.addClashingId( id );
+    analysis.addClashingId( value );
   }
 }

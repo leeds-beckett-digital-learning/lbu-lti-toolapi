@@ -366,7 +366,10 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
     jwksReg.addMapping(   toolSetMapping.jwksUrl()         );
     ariReg.addMapping(    toolSetMapping.autoRegUrl()      );
     blobexReg.addMapping( toolSetMapping.blobExchangeUrl() );
-    blobEx.setServletUrl( toolSetMapping.blobExchangeUrl() );
+    
+    String blobUrl = ctx.getContextPath() + toolSetMapping.blobExchangeUrl();
+    logger.log(Level.INFO, "blobUrl = {0}", blobUrl);
+    blobEx.setServletUrl( blobUrl );
   }
   
   /**

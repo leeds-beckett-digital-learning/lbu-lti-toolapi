@@ -105,13 +105,6 @@ public class DeepLinkingEndpoint extends ToolEndpoint
     super.onMessage( session, text );
   }  
 
-  @OnMessage
-  @Override
-  public void onMessage(Session session, ByteBuffer bb ) throws IOException
-  {
-    super.onMessage( session, bb );
-  }
-  
   /**
    * Client requested the list of tools/facets that can be instantiated.
    * 

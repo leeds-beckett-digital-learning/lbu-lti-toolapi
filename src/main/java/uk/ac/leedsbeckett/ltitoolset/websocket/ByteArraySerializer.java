@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * This serializer will put a placeholder string into the JSON value but
@@ -53,20 +52,9 @@ public class ByteArraySerializer extends JsonSerializer<byte[]>
     // Create a binary part which has an ID that will give a placeholder
     // string that does not not clash with string literals in the JSON.
     BinaryPart part = new BinaryPart( analysis );
-    part.setRawData( value );
-    // Use ByteBuffer to join a four byte ID and the source byte array
-    ByteBuffer tagged = ByteBuffer.allocate( value.length + 4 + 4 );
-    tagged.order( ByteOrder.LITTLE_ENDIAN );
-    tagged.putInt( (int)part.getId() );
-    tagged.putInt( value.length );
-    tagged.put( value );
-    // Match up the tagged byte array with the ID
-    part.setTaggedData( tagged.array() );
-    // Must not mess with the ByteBuffer now so don't save a reference to it.
-    // Make a record of the binary data object so it can be sent in a 
-    // binary message after the JSON has been sent.
-    binaryPartMap.put( part.getPlaceholder(), part );
-    gen.writeString( part.getPlaceholder() );
+    part.setData( value );
+    binaryPartMap.put( part.getId(), part );
+    gen.writeString( part.getId() );
   }
   
 }

@@ -51,7 +51,7 @@ public class ByteArrayDeserializer extends JsonDeserializer<byte[]>
     {
       BinaryPart bp = binaryPartMap.get( s );
       if ( bp != null )
-        return bp.getRawData();
+        return bp.getData();
     }
     return null;
   }  

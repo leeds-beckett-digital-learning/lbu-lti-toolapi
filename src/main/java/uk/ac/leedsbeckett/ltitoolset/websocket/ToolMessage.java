@@ -25,28 +25,35 @@ import java.util.UUID;
 public class ToolMessage
 {
   public static final String HEADER = "toolmessageversion1.0";
-  
+
   boolean valid=true;
   
   String id;
   String replyToId;
+  boolean control;
   String messageType;
   String payloadType;
   Object payload;
   
   String raw;
 
+  public ToolMessage( String replytoid, ToolMessageName name, Object payload )
+  {
+    this( replytoid, name, payload, false );
+  }
   /**
    * Constructor for sender to prepare the message for sending.
    * 
    * @param replytoid ID of the message this is in reply to.
    * @param name Name of message
    * @param payload The payload as a POJO.
+   * @param control Is this a control message?
    */
-  public ToolMessage( String replytoid, ToolMessageName name, Object payload )
+  public ToolMessage( String replytoid, ToolMessageName name, Object payload, boolean control )
   {
     this.id = UUID.randomUUID().toString();
     this.replyToId = replytoid;
+    this.control = control;
     this.messageType = name.getName();
     if ( payload != null )
     {
@@ -130,6 +137,16 @@ public class ToolMessage
   public void setReplyToId( String replyToId )
   {
     this.replyToId = replyToId;
+  }
+
+  public boolean isControl()
+  {
+    return control;
+  }
+
+  public void setControl( boolean control )
+  {
+    this.control = control;
   }
 
   /**

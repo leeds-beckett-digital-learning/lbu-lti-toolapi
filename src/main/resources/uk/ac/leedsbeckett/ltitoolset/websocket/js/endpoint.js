@@ -29,7 +29,8 @@ const lbultitoolapi = (function () {
   let nextid = Math.floor( Math.random()*10000 );
   
   let nextBlobId = 0;
-
+  let strBlobId = "binary_0";
+  
   function getBlobId( clashMap )
   {
     var n;
@@ -38,9 +39,10 @@ const lbultitoolapi = (function () {
       nextBlobId++;
       if ( nextBlobId === 0x7fffffff )
         nextBlobId = 0;
-    } while ( clashMap.has( nextBlobId ) );
+      strBlobId = "binary_" + nextBlobId;
+    } while ( clashMap.has( strBlobId ) );
 
-    return nextBlobId;
+    return strBlobId;
   }
   
   
@@ -83,8 +85,7 @@ const lbultitoolapi = (function () {
               if ( n < 0x30 || n > 0x39 )
                 return value;
             }
-            let num = Number( r.substring( 7 ) );
-            analysis.clashMap.set( num, num );
+            analysis.clashMap.set( value, value );
           }
           return value;
         }
@@ -108,22 +109,9 @@ const lbultitoolapi = (function () {
           let b = {};
           b.id = getBlobId( analysis.clashMap );
           b.len = value.length;
-          b.placeholder = "binary_" + b.id;
-
-          // a new buffer to receive metadata and data
-          let buffer = new ArrayBuffer( value.byteLength + 8 );
-          // Need a dataview to specify endianness of 32 bit ints
-          let metadataview = new DataView( buffer, 0, 8 );
-          metadataview.setUint32( 0, b.id, true ); 
-          metadataview.setUint32( 4, b.len, true ); 
-          // offset array for the actual data
-          let dataarray = new Uint8Array( buffer, 8, value.byteLength );
-          // copy the data over
-          dataarray.set( value );
-          // make a byte array against the whole lot
-          b.taggedData = new Uint8Array( buffer );
+          b.data = value;
           analysis.binData.push( b );
-          return b.placeholder;
+          return b.id;
         }
         return value;
       }
@@ -132,7 +120,7 @@ const lbultitoolapi = (function () {
       return analysis;
     }
     
-    send( socket )
+    async send( socket, clientConfig )
     {
       var payloadText;
       var analysis = null;
@@ -150,6 +138,30 @@ const lbultitoolapi = (function () {
           payloadText = analysis.json;
         }
       }      
+      
+      // Upload binary parts first
+      if ( analysis && analysis.binCount > 0 )
+      {
+        for ( var i=0; i<analysis.binData.length; i++ )
+        {
+          console.log( "Uploading binary data " + analysis.binData[i].id );
+          const b = analysis.binData[i];
+          const blob = new Blob([b.data]);
+          const requestOptions = {
+              method: 'PUT',
+              headers: { 
+                'Content-Type': 'application/octet-stream',
+                'Content-Length':  b.len,
+                'X-LBU-SessionID': clientConfig.sessionId,
+                'X-LBU-Nonce':     clientConfig.blobNonce,
+                'X-LBU-BlobId':    b.id
+              },
+              body: blob
+          };
+          const response = await fetch( clientConfig.blobUri, requestOptions);
+          console.log( "status = " + response.status );      
+        }
+      }
       
       var str = "toolmessageversion1.0\n";
       str += "id:" + this.id + "\n";
@@ -171,12 +183,9 @@ const lbultitoolapi = (function () {
         str += "payloadtype:" + this.payloadType + "\npayload:\n" ;
         str += payloadText;
       }
+      console.log( "Sending message on web socket." );
+      console.log( str );
       socket.send( str );
-      if ( analysis && analysis.binCount > 0 )
-      {
-        for ( var i=0; i<analysis.binData.length; i++ )
-          socket.send( analysis.binData[i].taggedData );
-      }
       return str;
     }
   };
@@ -187,7 +196,7 @@ const lbultitoolapi = (function () {
     openfunc;
     handler;
     socket;
-    pendingIncoming = new Array();
+    clientConfig;
     
     constructor( websserviceuri, handler )
     {
@@ -196,13 +205,11 @@ const lbultitoolapi = (function () {
       this.validateHandler( handler );
       this.socket = new WebSocket( this.wsuri );
       this.socket.binaryType = "arraybuffer";
-      this.pendingIncoming = new Array();
       
       
       this.socket.addEventListener( 'open',    (event) => 
       {
-        if ( handler.open )
-          handler.open();
+        // don't call open on handler yet - wait for client config
       });
 
       this.socket.addEventListener( 'close', (event) => 
@@ -221,61 +228,25 @@ const lbultitoolapi = (function () {
 
       this.socket.addEventListener( 'message', (event) => 
       {
+        this.onMessage( event );
+      });
+      
+    };
+    
+    async onMessage( event )
+    {
         console.log( 'Message from server: ', event.data);
         if ( typeof event.data === "string" )
         {
           //var partial = new lib.IncomingParts();
-          let message = this.decodeMessage( event.data );
+          let message = await this.decodeMessage( event.data );
           console.log( message );
-          if ( message.binaryParts.size === 0 )
-            this.dispatchMessage( message );
+          if ( message.control )
+            this.processControlMessage( message );
           else
-            this.pendingIncoming.push( message );
-        }
-        if ( event.data instanceof ArrayBuffer )
-        {
-          console.log( 'This is binary data.' );
-          // parse two 32 bit numbers
-          if ( event.data.byteLength < 8 )
-          {
-            alert( "Invalid binary insert." );
-            return;
-          }
-          var metadataview = new DataView( event.data, 0, 8 );
-          var bid = metadataview.getUint32( 0, true );
-          var placeholder = "binary_" + bid;
-          var len = metadataview.getUint32( 4, true );
-          console.log( placeholder + " " + len );
-          if ( event.data.byteLength !== (len + 8) )
-          {
-            alert( "Invalid binary insert = wrong length." );
-            return;
-          }          
-          for ( var i=0; i<this.pendingIncoming.length; i++ )
-          {
-            console.log( "Checking pending " + i );
-            if ( this.pendingIncoming[i].binaryParts.has( placeholder ) )
-            {
-              this.pendingIncoming[i].binaryParts.delete( placeholder );
-              console.log( "Message contains placeholder" );
-              var barray = new Uint8Array( event.data.slice( 8 ) );
-              console.log( "Adding" );
-              console.log( barray );
-              if ( this.pendingIncoming[i].binaryParts.size === 0 )
-              {
-                // find the placeholder and replace it
-                
-                // then dispatch
-                this.dispatchMessage( this.pendingIncoming[i] );            
-                // No longer pending so remove from array
-                this.pendingIncoming.splice( i, 1 );
-              }
-              break;
-            }
-          }
-        }
-      });
-    };
+            this.dispatchMessage( message );
+        }              
+    }
     
     close()
     {
@@ -287,9 +258,19 @@ const lbultitoolapi = (function () {
       
     }
 
+    processControlMessage( message )
+    {
+      if ( message.messageType === "ControlClientConfiguration" )
+      {
+        this.clientConfig = message.payload;
+        if ( this.handler.open )
+          this.handler.open();        
+      }
+    }
+    
     sendMessage( message )
     {
-      message.send( this.socket );
+      message.send( this.socket, this.clientConfig );
     };
 
     dispatchMessage( message )
@@ -306,16 +287,20 @@ const lbultitoolapi = (function () {
         console.log( "No handler for messages of type " + message.messageType );
     }
     
-    decodeMessage( str )
+    // Remember that because this is async the value in the return
+    // statement will be wrapped in a promise.
+    async decodeMessage( str )
     {
       let sig = "toolmessageversion1.0";
       let header, linesplit, name, value;
       let message = new Object();
       let started = false;
+      let strPayload = null;
       const regex = RegExp('(.*)[\n\r]+', 'gm');
 
       message.binaryParts = new Map();
       message.valid = false;
+      message.control = false;
       console.log( message );
       while ( true )
       {
@@ -341,30 +326,113 @@ const lbultitoolapi = (function () {
             message.id = value;
           else if ( name === "replytoid" )
             message.replyToId = value;
+          else if ( name === "control" && value === "true" )
+            message.control = true;
           else if ( name === "messagetype" )
             message.messageType = value;
           else if ( name === "binaryinsert" )
           {
-            var bp = { "id" : Number(value), "placeholder" : "binary_" + value };
-            message.binaryParts.set( bp.placeholder, bp );
+            var bp = { "id" : value, "data" : null };
+            message.binaryParts.set( bp.id, bp );
           }
           else if ( name === "payloadtype" )
             message.payloadType = value;
           else if ( name === "payload" )
           {
-            let payload = str.substring( regex.lastIndex );
-            message.payload = JSON.parse( payload );
+            strPayload = str.substring( regex.lastIndex );
             break;
           }
+        }
+      }
+
+      // fetch the binary parts now - before parsing any JSON
+      for ( const [key,value] of message.binaryParts )
+      {
+        value.data = null;
+
+        const requestOptions = {
+            method: 'GET',
+            headers: { 
+              'X-LBU-SessionID': this.clientConfig.sessionId,
+              'X-LBU-Nonce':     this.clientConfig.blobNonce,
+              'X-LBU-BlobId':    value.id
+            }
+        };      
+        // https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream#async_iteration_of_a_stream_using_for_await...of
+        const response = await fetch( this.clientConfig.blobUri, requestOptions);
+        console.log( "status = " + response.status );      
+        if ( Math.floor( response.status / 100 ) !== 2 )
+          return; // should be some exception handling here
+        // should check for excessive size...
+        if ( !response.body )
+          return;
+        console.log( response.body );
+        console.log( typeof response.body );
+        const chunks = [];
+        var byteCount=0;
+        for await (const chunk of response.body)
+        {
+          // chunk should be Uint8Array
+          byteCount += chunk.byteLength;
+          console.log( chunk );
+          chunks.push(chunk);
+        }
+        // If there is only one chunk set it
+        if ( chunks.length === 1 )
+        {
+          console.log( "one chunk only" );
+          console.log( chunks[0] );
+          value.data = chunks[0];
+        }
+        else
+        {
+          // Multiple chunks so concatenate
+          // big enough array for all
+          console.log( "multiple chunks" );
+          value.data = new Uint8Array( new ArrayBuffer( byteCount ) );
+          var offset = 0;
+          // copy data one by one
+          for ( var i=0; i<chunks.length; i++ )
+          {
+            value.data.set( chunks[i], offset );
+            offset += chunks[i].byteLength;
+          }
+          console.log( value.data );
         }
       }
 
       if ( message.id && message.messageType )
         message.valid = true;
 
+      function reviver( key, value )
+      {
+        if ( !message.binaryParts ) return value;
+        if ( message.binaryParts.size === 0 ) return value;
+        if ( typeof value === 'string' || value instanceof String )
+        {
+          if ( value.indexOf( "binary_" ) === 0 )
+          {
+            if ( message.binaryParts.has( value ) )
+            {
+              let bp = message.binaryParts.get( value );
+              if ( bp.data )
+                return bp.data;
+            }
+          }
+        }        
+        return value;
+      }
+
+      if ( strPayload )
+      {
+        console.log( "Parsing JSON payload" );
+        message.payload = JSON.parse( strPayload, reviver );
+      }
+      
       return message;
     };
   
+    
   
   };
 

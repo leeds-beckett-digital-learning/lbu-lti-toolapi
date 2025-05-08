@@ -25,26 +25,23 @@ public class BinaryPart
 {
   static long nextId = 0L;
   
-  public static long getNextId( OutgoingToolMessageAnalysis analysis )
+  public static String getNextId( OutgoingToolMessageAnalysis analysis )
   {
+    String strId;
     do
     {
       nextId++;
       if ( nextId >= 0x100000000L )
         nextId = 0;
+      strId = "binary_" + nextId;
     }
-    while ( analysis.containsClashingId( nextId ) );
-    return nextId;
+    while ( analysis.containsClashingId( strId ) );
+    return strId;
   }
   
-  long id;
-  long length;
-  byte[] rawData;
-  
-  byte[] taggedData;
-
-  final String placeholder;
-  
+  String id;
+  byte[] data;
+    
   /**
    * For sending byte array to peer.
    * 
@@ -53,49 +50,32 @@ public class BinaryPart
   public BinaryPart( OutgoingToolMessageAnalysis analysis )
   {
     this.id = getNextId( analysis );
-    this.placeholder = "binary_" + id;
   }
   
   /**
-   * For receiving byte array from peer. Instantiated when the
-   * text part of the message is received but before binary parts
-   * have arrived.
+   * For receiving byte array from peer.Instantiated when the
+ text part of the message is received but before binary parts
+ have arrived.
    * 
    * @param id The id of the binary message
    */
-  public BinaryPart( long id )
+  public BinaryPart( String id )
   {
     this.id = id;
-    this.placeholder = "binary_" + id;
   }
 
-  public long getId()
+  public String getId()
   {
     return id;
   }
 
-  public String getPlaceholder()
+  public byte[] getData()
   {
-    return placeholder;
-  }
-  
-  public byte[] getRawData()
-  {
-    return rawData;
+    return data;
   }
 
-  public void setRawData( byte[] rawData )
+  public void setData( byte[] data )
   {
-    this.rawData = rawData;
+    this.data = data;
   }
-
-  public byte[] getTaggedData()
-  {
-    return taggedData;
-  }
-
-  public void setTaggedData( byte[] taggedData )
-  {
-    this.taggedData = taggedData;
-  }  
 }

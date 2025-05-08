@@ -16,6 +16,7 @@
 package uk.ac.leedsbeckett.ltitoolset.servlet;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.math.BigInteger;
 import java.security.MessageDigest;
@@ -27,6 +28,10 @@ import javax.servlet.ServletInputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import org.apache.commons.io.IOUtils;
+import uk.ac.leedsbeckett.ltitoolset.ToolCoordinator;
+import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExException;
+import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExchanger;
 
 /**
  * Used for secure upload and download of Blobs. One Blob may be one file or
@@ -41,50 +46,75 @@ public class BlobExchangeServlet extends HttpServlet
   @Override
   protected void doPut( HttpServletRequest req, HttpServletResponse resp ) throws ServletException, IOException
   {
+    logger.log( Level.WARNING, "Someone is uploading a blob." );
+    ToolCoordinator toolCoord  = ToolCoordinator.get( req.getServletContext() );
+    if ( toolCoord  == null ) { resp.sendError( 500, "Cannot find tool manager." ); return; }
+    BlobExchanger blobEx = toolCoord.getBlobExchanger();
+    if ( blobEx  == null ) { resp.sendError( 500, "Cannot find blob exchanger." ); return; }
+    
     long len = req.getContentLengthLong();
-    logger.log(Level.INFO, "ContentLength = {0}", Long.toString( len ));
+    logger.log( Level.INFO, "ContentLength = {0}", Long.toString( len ) );
     if ( len > 10000000L )  // Exceeds 10MB
     {
-      resp.sendError( 413, "Upload chunk too big." );
-      return;
-    }
-    
-    MessageDigest md;
-    try
-    {
-      md = MessageDigest.getInstance( "SHA-256" );
-    }
-    catch ( NoSuchAlgorithmException ex )
-    {
-      Logger.getLogger( BlobExchangeServlet.class.getName() ).log( Level.SEVERE, null, ex );
-      resp.sendError( 500, "No message digest functionality available on this server." );
+      resp.sendError( 413, "Upload too big." );
       return;
     }
 
-    ServletInputStream in = req.getInputStream();
-    byte[] buffer = new byte[1024];
-    long total = 0L;
-    int n;
-    while ( ((n = in.read( buffer )) > 0) && total <= len )
+    String blobid     = req.getHeader( BlobExchanger.HEADER_BLOBID );
+    String nonce      = req.getHeader( BlobExchanger.HEADER_NONCE );
+    String sessid     = req.getHeader( BlobExchanger.HEADER_SESSIONID );
+    
+    if ( !blobEx.isCorrectNonce( sessid, nonce ) )
     {
-      md.update( buffer, 0, n );
-      total += n;
+      resp.sendError( 500, "Unknown blob exchange session or incorrect nonce." );
+      return;
+    }    
+    
+    // For now just read everything into byte array
+    byte[] buffer = IOUtils.toByteArray( req.getInputStream() );
+    if ( buffer.length != len )
+    {
+      resp.sendError( 500, "Binary data wrong length. Content length = " + len + " actual length " + buffer.length );
+      return;
+    }    
+
+    try
+    {
+      blobEx.putBlob( sessid, blobid, buffer );
+      logger.log(Level.WARNING, "Uploaded sessid {0} blobid {1}", new Object[ ]{sessid, blobid});    
+    }
+    catch ( BlobExException ex )
+    {
+      resp.sendError( 500, "Unable to store blob." );
+      return;
     }
     
-    byte[] bDigest = md.digest();
-    String strDigest = new BigInteger( 1, bDigest ).toString( 16 );
-    logger.log(Level.INFO, "Digest = {0}", strDigest);
     resp.setStatus( 201 );  // CREATED
   }
 
   @Override
   protected void doGet( HttpServletRequest req, HttpServletResponse resp ) throws ServletException, IOException
   {
-    resp.setContentType( "text/plain" );
-    resp.setCharacterEncoding( "utf-8" );
+    ToolCoordinator toolCoord  = ToolCoordinator.get( req.getServletContext() );
+    if ( toolCoord  == null ) { resp.sendError( 500, "Cannot find tool manager." ); return; }
+    BlobExchanger blobEx = toolCoord.getBlobExchanger();
+    if ( blobEx  == null ) { resp.sendError( 500, "Cannot find blob exchanger." ); return; }
+    
+    String blobid     = req.getHeader( BlobExchanger.HEADER_BLOBID );
+    String nonce      = req.getHeader( BlobExchanger.HEADER_NONCE );
+    String sessid     = req.getHeader( BlobExchanger.HEADER_SESSIONID );
+
+    if ( !blobEx.isCorrectNonce( sessid, nonce ) )
+       { resp.sendError( 500, "Unkown session or incorrect nonce." ); return; }
+    
+    byte[] data = blobEx.getBlob( sessid, blobid );
+    if ( data == null )
+       { resp.sendError( 500, "Unkown blob." ); return; }
+    
+    resp.setContentType( "application/octet-stream" );
     resp.setStatus( 200 );
-    PrintWriter out = resp.getWriter();
-    out.print( "Under development." );
+    OutputStream out = resp.getOutputStream();
+    out.write( data );
     out.close();
   }
   

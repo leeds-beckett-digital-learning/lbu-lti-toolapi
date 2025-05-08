@@ -21,10 +21,13 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.ByteBuffer;
+import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.logging.Level;
 import javax.websocket.DecodeException;
 import javax.websocket.EncodeException;
+import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExchanger;
 import static uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageDecoder.logger;
 
 /**
@@ -36,7 +39,6 @@ public class ToolMessageIncomingParts
   final ToolMessage toolMessage;
   final HashMap<String,BinaryPart> binaryPartMap = new HashMap<>();
 
-  boolean allPartsReceived = false;
   boolean valid=true;
   boolean haspayload=false;
   String text;
@@ -92,8 +94,8 @@ public class ToolMessageIncomingParts
           case "binaryinsert":
             try
             {
-              BinaryPart bp = new BinaryPart( Integer.parseUnsignedInt( value ) );
-              binaryPartMap.put( bp.getPlaceholder(), bp );
+              BinaryPart bp = new BinaryPart( value );
+              binaryPartMap.put( value, bp );
             }
             catch ( NumberFormatException nfe )
             {
@@ -110,11 +112,7 @@ public class ToolMessageIncomingParts
           throw new DecodeException( text, "Unknown type of payload in message." );
         if ( !ToolMessageTypeSet.isAllowed( classname ) )
           throw new DecodeException( text, "Disallowed type of payload in message. " + classname );
-        if ( binaryPartMap.isEmpty() )
-          allPartsReceived = true;
       }
-      else
-        allPartsReceived = true;
     }
     catch ( IOException ex )
     {
@@ -123,37 +121,14 @@ public class ToolMessageIncomingParts
     }
   }
 
-  
-  public boolean hasPlaceholder( String placeholder )
+  public Collection<BinaryPart> getBinaryParts()
   {
-    return binaryPartMap.containsKey( placeholder );
+    return binaryPartMap.values();
   }
   
-  /**
-   * Offer a binary part to this message.It might belong to another message.
-   * 
-   * @param placeholder The placeholder for this binary part
-   * @param data The data being communicated.
-   */
-  public void addBinary( String placeholder, byte[] data )
+  public boolean hasId( String placeholder )
   {
-    // Find expected binary part by placeholder
-    BinaryPart bp = binaryPartMap.get( placeholder );
-    // if none, this part is not for this message
-    if ( bp == null )
-      return;
-    
-    // Record the byte array
-    bp.setRawData( data );
-    
-    // Have we got all the expected byte arrays for this
-    // tool message now?
-    for ( BinaryPart bpi : binaryPartMap.values() )
-      if ( bpi.getRawData() == null )
-        return; // No
-    
-    // Yes
-    allPartsReceived = true;
+    return binaryPartMap.containsKey( placeholder );
   }
   
   public void parsePayload() throws DecodeException, IOException
@@ -189,18 +164,6 @@ public class ToolMessageIncomingParts
     return toolMessage;
   }
 
-  public boolean isAllPartsReceived()
-  {
-    return allPartsReceived;
-  }
-
-  public boolean isStale()
-  {
-    if ( allPartsReceived ) return true;
-    long age = System.currentTimeMillis() - this.textTimestamp;
-    return age > 1000 * 10;
-  }
-  
   public boolean isValid()
   {
     return valid;

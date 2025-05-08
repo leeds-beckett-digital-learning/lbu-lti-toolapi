@@ -8,6 +8,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -28,7 +30,11 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelKey;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.BackchannelOwner;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
+import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExException;
+import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExchanger;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
+import uk.ac.leedsbeckett.ltitoolset.websocket.control.ControlClientConfiguration;
+import uk.ac.leedsbeckett.ltitoolset.websocket.control.ControlMessageName;
 
 /**
  * This is the superclass of all the web socket endpoint classes.
@@ -37,7 +43,7 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandle
  * 
  * @author jon
  */
-public abstract class ToolEndpoint implements SendHandler, BackchannelOwner
+public abstract class ToolEndpoint implements BackchannelOwner
 {
   static final Logger logger = Logger.getLogger(ToolEndpoint.class.getName() );
 
@@ -130,19 +136,16 @@ public abstract class ToolEndpoint implements SendHandler, BackchannelOwner
   // called once for an instance of this class. So, it should be safe
   // to store the session here.
   Session session = null;
+  ControlClientConfiguration clientConfiguration;  
   
   String uniqueid;
   String stateid;
   ToolSetLtiState state;
   ToolLaunchState toolState;
   protected ToolCoordinator toolCoordinator;
+  protected BlobExchanger blobEx;
 
   String platformHost;
-
-  final LinkedList<ToolMessageIncomingParts> pendingMessages = new LinkedList<>();
-  final LinkedList<ToolMessageIncomingParts> pendingRemoval = new LinkedList<>();
-
-  final LinkedList<Object> messageSendQueue = new LinkedList<>();
   
   public ToolEndpoint()
   {
@@ -219,8 +222,8 @@ public abstract class ToolEndpoint implements SendHandler, BackchannelOwner
   {
     if ( this.session != null ) throw new IOException( "onOpen was called more than once on this ToolEndpoint instance." );
     this.session = session;
-    
     toolCoordinator = ToolCoordinator.get( session.getContainer() );
+    blobEx = toolCoordinator.getBlobExchanger();
     // If it hasn't already been done for this class, map the handler methods.
     getHandlerMap( this.getClass() );
     List<String> list = session.getRequestParameterMap().get( "state_id" );
@@ -258,7 +261,25 @@ public abstract class ToolEndpoint implements SendHandler, BackchannelOwner
     {
       platformHost = null;
     }
+    URI wsUri = session.getRequestURI();
+    StringBuilder sb = new StringBuilder();
+    sb.append( "https://" );
+    sb.append( wsUri.getHost() );
+    if ( wsUri.getPort() > 0 )
+    {
+      sb.append( ":" );
+      sb.append( wsUri.getPort() );
+    }
+    sb.append( toolCoordinator.getBlobExchanger().getServletUrl() );
+    String blobNonce = toolCoordinator.getBlobExchanger().registerSession( stateid );
+    
     toolCoordinator.addWsSession( this, session );
+    clientConfiguration = new ControlClientConfiguration();
+    clientConfiguration.setSessionId( stateid );
+    clientConfiguration.setBlobUri( sb.toString() );
+    clientConfiguration.setBlobNonce( blobNonce );
+    ToolMessage clientConfigMessage = new ToolMessage( null, ControlMessageName.ControlClientConfiguration, clientConfiguration, true );
+    sendToolMessage( session, clientConfigMessage );    
   }
 
   /**
@@ -285,80 +306,27 @@ public abstract class ToolEndpoint implements SendHandler, BackchannelOwner
         logger.log(Level.SEVERE, "Endpoint received invalid message: {0}", text );
         return;
       }
-      
-      if ( partial.isAllPartsReceived() )
+
+      for ( BinaryPart bp : partial.getBinaryParts() )
       {
-        partial.parsePayload();
-        if ( dispatchMessage( session, partial.getToolMessage() ) )
-          return;
-        logger.log( Level.WARNING, "Did not find handler for message." );        
-      }
-      else
-      {
-        synchronized ( pendingMessages )
+        byte[] data = blobEx.getBlob( stateid, bp.getId() );
+        if ( data == null )
         {
-          pendingMessages.add( partial );
+          logger.log(Level.SEVERE, "Blob missing from message: {0}", text );
+          return;
         }
+        bp.setData( data );
       }
+
+      partial.parsePayload();
+      if ( dispatchMessage( session, partial.getToolMessage() ) )
+        return;
+      logger.log( Level.WARNING, "Did not find handler for message." );        
     }
     catch ( DecodeException ex )
     {
       logger.log( Level.SEVERE, null, ex );
     }
-  }
-  
-  public void onMessage(Session session, ByteBuffer bb ) throws IOException
-  {
-    bb.order( ByteOrder.LITTLE_ENDIAN );
-    long id     = Integer.toUnsignedLong( bb.getInt() );
-    logger.log( Level.INFO, "binary message id = {0}", id );
-    int length = bb.getInt();
-    logger.log( Level.INFO, "length = {0}", length );
-    if ( length < 0 || length > (1024*1024*8) )
-      throw new IOException( "Incoming binary data exceeding maximum of 8MB" );
-    // Don't read the data yet - perhaps there is no pending message
-    // that wants it.
-    
-    String placeholder = "binary_" + id;
-    synchronized ( pendingMessages )
-    {
-      // Look for pending incoming message that is waiting for this
-      // binary data.
-      // While we are at it, clear timed out messages.
-      for ( ToolMessageIncomingParts partial : pendingMessages )
-      {
-        if ( partial.isStale() )
-          pendingRemoval.add( partial );
-        else if ( partial.hasPlaceholder( placeholder ) )
-        {
-          // Now we want the data
-          // allocate space
-          byte[] data = new byte[length];
-          // fetch the data
-          bb.get( data );
-          // add to the other message data in the pending message.
-          partial.addBinary( placeholder, data );
-          // Is this message complete now?
-          if ( partial.isAllPartsReceived() )
-          {
-            try
-            {
-              pendingRemoval.add( partial );
-              partial.parsePayload();
-              if ( !dispatchMessage( session, partial.getToolMessage() ) )
-                logger.log( Level.WARNING, "Did not find handler for message." );
-            }
-            catch ( DecodeException ex )
-            {
-              logger.log( Level.SEVERE, null, ex );
-            }
-          }
-        }
-      }
-      for ( ToolMessageIncomingParts partial : pendingRemoval )
-        pendingMessages.remove( partial );
-      pendingRemoval.clear();
-    }    
   }
   
   /**
@@ -432,52 +400,25 @@ public abstract class ToolEndpoint implements SendHandler, BackchannelOwner
    */
   private void sendToolMessageParts( Session session, ToolMessageOutgoingParts parts )
   {
-    // You can't queue up multiple messages - there will be an exception
-    // if you try to send one while another is waiting to send or in the middle
-    // of sending.  So, if we want to async send we have to manage a queue.
-    synchronized ( messageSendQueue )
-    {
-      boolean wasEmpty = messageSendQueue.isEmpty();
-      // Perhaps we need to guard against a massive queue forming?
-      
-      // Start by adding new messages to queue
-      this.messageSendQueue.add( parts.getText() );
-      if ( parts.hasBinaryParts() )
-        for ( BinaryPart bp : parts.getBinaryParts() )
-          this.messageSendQueue.add( ByteBuffer.wrap(bp.taggedData ) );
-
-      if ( wasEmpty )
+    // blobs to blob exchanger
+    // text as websocket message
+    if ( parts.hasBinaryParts() )
+      for ( BinaryPart bp : parts.getBinaryParts() )
       {
-        Object first = messageSendQueue.getFirst();
-        if ( first instanceof String )
-          session.getAsyncRemote().sendText( (String)first, this );      
-        else if ( first instanceof ByteBuffer )
-          session.getAsyncRemote().sendBinary( (ByteBuffer)first, this );
+        try
+        {
+          blobEx.putBlob( stateid, bp.getId(), bp.getData() );
+        }
+        catch ( BlobExException ex )
+        {
+          logger.log( Level.SEVERE, null, ex );
+        }
       }
-      // Otherwise there is a message being sent and we need to wait.
-    }
+    
+    session.getAsyncRemote().sendText( parts.getText() );    
   }
 
-  @Override
-  public void onResult( SendResult sr )
-  {
-    synchronized ( messageSendQueue )
-    {
-      // the payload just sent must be first in queue - remove it
-      messageSendQueue.removeFirst();
-      // Are there more in queue.?
-      if ( !messageSendQueue.isEmpty() )
-      {
-        Object first = messageSendQueue.getFirst();
-        if ( first instanceof String )
-          session.getAsyncRemote().sendText( (String)first, this );      
-        else if ( first instanceof ByteBuffer )
-          session.getAsyncRemote().sendBinary( (ByteBuffer)first, this );
-      }
-    }
-  }
-  
-  
+    
   /**
    * Send the tool message from this server to the client.
    * 

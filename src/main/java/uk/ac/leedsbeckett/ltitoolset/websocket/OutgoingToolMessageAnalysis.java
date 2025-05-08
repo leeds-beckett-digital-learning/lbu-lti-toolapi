@@ -15,7 +15,6 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.websocket;
 
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -25,26 +24,26 @@ import java.util.Set;
  */
 public class OutgoingToolMessageAnalysis
 {
-  private HashSet<Long> clashingIds = null;
+  private HashSet<String> clashingIds = null;
   private int byteArrayCount=0;
 
   public boolean hasClashingIds()
   {
     return clashingIds != null && !clashingIds.isEmpty();
   }
-  public Set<Long> getClashingIds()
+  public Set<String> getClashingIds()
   {
     return clashingIds;
   }
 
-  public void addClashingId( long id )
+  public void addClashingId( String id )
   {
     if ( clashingIds == null )
       clashingIds = new HashSet<>();
     clashingIds.add( id );
   }
   
-  public boolean containsClashingId( long id )
+  public boolean containsClashingId( String id )
   {
     return clashingIds != null && clashingIds.contains( id );
   }

@@ -18,20 +18,11 @@ package uk.ac.leedsbeckett.ltitoolset.websocket;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.StringReader;
-import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.websocket.DecodeException;
-import javax.websocket.EncodeException;
-import static uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageDecoder.logger;
 
 /**
  *
@@ -97,6 +88,8 @@ public class ToolMessageOutgoingParts
       sb.append( toolMessage.getReplyToId() );
       sb.append( "\n" );
     }
+    if ( toolMessage.isControl() )
+      sb.append( "control:true\n" );
     sb.append( "messagetype:" );
     sb.append( toolMessage.getMessageType() );
     sb.append( "\n" );
@@ -175,21 +168,24 @@ public class ToolMessageOutgoingParts
       System.out.println( parts.getIntermediateJson() );
       OutgoingToolMessageAnalysis analysis = parts.getAnalysis();
       System.out.println( "Byte array count = " + analysis.getByteArrayCount() );
-      for ( Long l : analysis.getClashingIds() )
-        System.out.println( "clashing ID " + l );
+      for ( String id : analysis.getClashingIds() )
+        System.out.println( "clashing ID " + id );
       System.out.println( parts.getPayloadJson() );
       System.out.println( "---------------" );
       System.out.println( parts.getText() );
       System.out.println( "---------------" );
-      for ( BinaryPart bp : parts.getBinaryParts() )
+      if ( parts.hasBinaryParts() )
       {
-        System.out.println( bp.id );
-        for ( int i=0; i<bp.rawData.length; i++ )
-          System.out.println( Integer.toHexString( Byte.toUnsignedInt( bp.rawData[i] ) ) );
-        System.out.println( "---------------" );
-        for ( int i=0; i<bp.taggedData.length; i++ )
-          System.out.println( Integer.toHexString( Byte.toUnsignedInt( bp.taggedData[i] ) ) );
-        System.out.println( "---------------" );
+        for ( BinaryPart bp : parts.getBinaryParts() )
+        {
+          System.out.println( bp.id );
+          for ( int i=0; i<bp.data.length; i++ )
+            System.out.println( Integer.toHexString( Byte.toUnsignedInt( bp.data[i] ) ) );
+          System.out.println( "---------------" );
+          for ( int i=0; i<bp.data.length; i++ )
+            System.out.println( Integer.toHexString( Byte.toUnsignedInt( bp.data[i] ) ) );
+          System.out.println( "---------------" );
+        }
       }
     }
     catch ( DecodeException ex )
