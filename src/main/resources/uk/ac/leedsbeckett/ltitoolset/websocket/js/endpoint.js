@@ -68,7 +68,6 @@ const lbultitoolapi = (function () {
     handler;
     socket;
     clientConfig;
-    sendPromise;
     
     constructor( websserviceuri, handler )
     {
@@ -77,7 +76,6 @@ const lbultitoolapi = (function () {
       this.validateHandler( handler );
       this.socket = new WebSocket( this.wsuri );
       this.socket.binaryType = "arraybuffer";
-      this.sendPromise=null;
       
       
       this.socket.addEventListener( 'open',    (event) => 
@@ -106,19 +104,26 @@ const lbultitoolapi = (function () {
       
     };
     
-    async onMessage( event )
+    onMessage( event )
     {
-      console.log( 'Message from server: ', event.data);
       if ( typeof event.data === "string" )
       {
+        console.log( 'Message from server: ', event.data);
+        
         //var partial = new lib.IncomingParts();
-        let message = await this.decodeMessage( event.data );
-        console.log( message );
-        if ( message.control )
-          this.processControlMessage( message );
-        else
-          this.dispatchMessage( message );
-      }              
+        let message = this.decodeMessageHeaders( event.data );
+        this.getBinaryParts( message )
+          .then( () =>
+            {
+              console.debug( "onMessage then handler" );
+              this.decodePayload( message );
+              console.log( message );
+              if ( message.control )
+                this.processControlMessage( message );
+              else
+                this.dispatchMessage( message );
+            } );
+      }
     }
     
     close()
@@ -155,20 +160,19 @@ const lbultitoolapi = (function () {
         console.log( "No handler for messages of type " + message.messageType );
     }
     
-    // Remember that because this is async the value in the return
-    // statement will be wrapped in a promise.
-    async decodeMessage( str )
+    decodeMessageHeaders( str )
     {
       let sig = "toolmessageversion1.0";
       let header, linesplit, name, value;
       let message = new Object();
       let started = false;
-      let strPayload = null;
       const regex = RegExp('(.*)[\n\r]+', 'gm');
 
       message.binaryParts = new Map();
       message.valid = false;
       message.control = false;
+      message.strPayload = null;
+      
       console.log( message );
       while ( true )
       {
@@ -207,71 +211,89 @@ const lbultitoolapi = (function () {
             message.payloadType = value;
           else if ( name === "payload" )
           {
-            strPayload = str.substring( regex.lastIndex );
+            message.strPayload = str.substring( regex.lastIndex );
             break;
           }
         }
       }
-
-      // fetch the binary parts now - before parsing any JSON
-      for ( const [key,value] of message.binaryParts )
-      {
-        value.data = null;
-
-        const requestOptions = {
-            method: 'GET',
-            headers: { 
-              'X-LBU-SessionID': this.clientConfig.sessionId,
-              'X-LBU-Nonce':     this.clientConfig.blobNonce,
-              'X-LBU-BlobId':    value.id
-            }
-        };      
-        // https://developer.mozilla.org/en-US/docs/Web/API/ReadableStream#async_iteration_of_a_stream_using_for_await...of
-        const response = await fetch( this.clientConfig.blobUri, requestOptions);
-        console.log( "status = " + response.status );      
-        if ( Math.floor( response.status / 100 ) !== 2 )
-          return; // should be some exception handling here
-        // should check for excessive size...
-        if ( !response.body )
-          return;
-        console.log( response.body );
-        console.log( typeof response.body );
-        const chunks = [];
-        var byteCount=0;
-        for await (const chunk of response.body)
-        {
-          // chunk should be Uint8Array
-          byteCount += chunk.byteLength;
-          console.log( chunk );
-          chunks.push(chunk);
-        }
-        // If there is only one chunk set it
-        if ( chunks.length === 1 )
-        {
-          console.log( "one chunk only" );
-          console.log( chunks[0] );
-          value.data = chunks[0];
-        }
-        else
-        {
-          // Multiple chunks so concatenate
-          // big enough array for all
-          console.log( "multiple chunks" );
-          value.data = new Uint8Array( new ArrayBuffer( byteCount ) );
-          var offset = 0;
-          // copy data one by one
-          for ( var i=0; i<chunks.length; i++ )
-          {
-            value.data.set( chunks[i], offset );
-            offset += chunks[i].byteLength;
-          }
-          console.log( value.data );
-        }
-      }
-
       if ( message.id && message.messageType )
         message.valid = true;
+      return message;
+    }
 
+    // Returns a promise that is fulfilled when all data is loaded into
+    // byte arrays.
+    getBinaryParts( message )
+    {
+      // If no binary parts return a promise that instantly resolves.
+      if ( !message.strPayload || !message.binaryParts || message.binaryParts.size === 0 )
+        return new Promise( (resolve, reject) => { resolve("No binary parts to fetch."); } );
+      
+      var getBinaryPromises = [];
+      // fetch the binary parts now - before parsing any JSON
+      for ( const [key,value] of message.binaryParts )
+        getBinaryPromises.push( this.getOneBinaryPart( value ) );
+      // Return a promise that succeeds if all parts succeed
+      return Promise.all( getBinaryPromises )
+              .then( (value) => console.debug( "All binary parts succeeded." ), 
+                     (error) => console.debug( "One or more binary parts failed" ) );
+    }
+    
+    
+    // Return a 'Promise' that the fetch is complete and the data read
+    getOneBinaryPart( binarypart )
+    {
+      return new Promise( (resolve, reject ) =>
+      {
+        binarypart.data = null;
+
+        const requestOptions = 
+        {
+            method: 'GET',
+            headers:
+            { 
+              'X-LBU-SessionID': this.clientConfig.sessionId,
+              'X-LBU-Nonce':     this.clientConfig.blobNonce,
+              'X-LBU-BlobId':    binarypart.id
+            }
+        };
+        
+        function processBytesSuccess( data )
+        {
+          binarypart.data = data;
+          console.log( binarypart.data );
+          resolve( "Success" );
+        }
+        
+        function procesBytesFail( error )
+        {
+          // Fail the main getOneBinaryPart promise
+          reject( error );
+        }
+        
+        function processFetchSuccess( response )
+        {
+          console.log( "status = " + response.status );      
+          if ( Math.floor( response.status / 100 ) !== 2 )
+            reject( response.statusText ); // should be some exception handling here
+          // should check for excessive size...
+          response.bytes().then( (data) => processBytesSuccess( data ), (error) => processBytesFail( error) );
+        }
+        
+        function processFetchFail( error )
+        {
+          // reject the promise for getOneBinaryPart()
+          reject( error );
+        }
+        
+        fetch( this.clientConfig.blobUri, requestOptions)
+          .then( (response) => processFetchSuccess( response ), (error) => processFetchFail() );
+
+      } );
+    }
+    
+    decodePayload( message )
+    {
       function reviver( key, value )
       {
         if ( !message.binaryParts ) return value;
@@ -291,27 +313,20 @@ const lbultitoolapi = (function () {
         return value;
       }
 
-      if ( strPayload )
+      if ( message.strPayload )
       {
         console.log( "Parsing JSON payload" );
-        message.payload = JSON.parse( strPayload, reviver );
+        message.payload = JSON.parse( message.strPayload, reviver );
       }
       
       return message;
     };
 
     
-    async sendMessage( message )
+    sendMessage( message )
     {
       var analysis;
 
-      if ( this.sendPromise )
-      {
-        console.log( "SendMessage called but previous message not sent yet so wait." );
-        await this.sendPromise;
-        console.log( "Ready to send message now." );
-      }
-      
       if ( message.payloadType && message.payload )
         analysis = this.analyseAndSplit( message );
       
@@ -341,7 +356,6 @@ const lbultitoolapi = (function () {
       const thisToolSocket = this;
       function sendTextIfBinarySucceeded( values )
       {
-        thisToolSocket.sendPromise = null;
         // what have we got here?
         console.log( "sendTextIfBinarySucceeded()" );
       
@@ -359,11 +373,10 @@ const lbultitoolapi = (function () {
       }
       function binaryFailed( reason )
       {
-        thisToolSocket.sendPromise = null;
         console.error( "one or more binary uploads failed", reason );
       }      
       
-      this.sendPromise = Promise.all( putPromises )
+      Promise.all( putPromises )
           .then(
                 (value)  => { sendTextIfBinarySucceeded( value ); },
                 (reason) => { binaryFailed( reason );             }
