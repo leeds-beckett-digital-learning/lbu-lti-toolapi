@@ -56,202 +56,10 @@ const lbultitoolapi = (function () {
       this.payloadType = payloadType?payloadType:null;
       this.replyToId   = null;
       this.payload     = null;
-    }
-
-    analyse()
-    {
-      var analysis = {};
-      analysis.clashMap = new Map();
-      analysis.binCount = 0;
-      analysis.binData = [];
-      analysis.json = null;
-
-      function analyticalReplacer( key, value )
-      {
-        if ( value instanceof Uint8Array )
-        {
-          analysis.binCount++;
-          return undefined;
-        }
-        if ( typeof value === 'string' || value instanceof String )
-        {
-          if ( value.indexOf( "binary_" ) === 0 )
-          {
-            for ( var i=7; i<value.length; i++ )
-            {
-              let n = r.charCodeAt( i );
-              if ( n < 0x30 || n > 0x39 )
-                return value;
-            }
-            analysis.clashMap.set( value, value );
-          }
-          return value;
-        }
-        return value;
-      }
-
-      analysis.json = JSON.stringify( this.payload, analyticalReplacer );
-      return analysis;
-    }
-    
-    split( analysis )
-    {
-      function replacer( key, value )
-      {
-        if ( value instanceof Uint8Array )
-        {
-          let b = {};
-          b.id = getBlobId( analysis.clashMap );
-          b.len = value.length;
-          b.data = value;
-          b.sent = false;
-          b.failed = false;
-          analysis.binData.push( b );
-          return b.id;
-        }
-        return value;
-      }
-
-      analysis.json = JSON.stringify( this.payload, replacer );
-      return analysis;
-    }
-
-    analyseAndSplit()
-    {
-      // Count Uint8Arrays in the payload
-      // and find any string values that could be mistaken for
-      // binary placeholder strings. At same time serialize payload
-      // to JSON.
-      var analysis = this.analyse();
-      // If there is one or more UintArray values in the payload 
-      // make them into a list and 
-      // make a new JSON with placeholder strings to represent them.
-      if ( analysis.binCount !== 0  )
-        this.split( analysis );
-      
-      return analysis;
-    }
-    
-    // Will return a promise so multiple binary puts can be
-    // done in parallel.
-    putBinary( b, clientConfig )
-    {
-      console.log( "Starting binary data upload " + b.id );
-      const blob = new Blob([b.data]);
-      const requestOptions = {
-          method: 'PUT',
-          headers: { 
-            'Content-Type': 'application/octet-stream',
-            'Content-Length':  b.len,
-            'X-LBU-SessionID': clientConfig.sessionId,
-            'X-LBU-Nonce':     clientConfig.blobNonce,
-            'X-LBU-BlobId':    b.id
-          },
-          body: blob
-      };
-      function onFulfilled( response )
-      {
-        console.log( "For binary " + b.id + " status = " + response.status );
-        // Still counts as fail if status indicates problem.
-        if ( Math.floor( response.status/100 ) !== 2 )
-        {
-          console.log( "Failed upload " + response.statusText );
-          b.failed = true;
-        }
-      }
-      function onRejected( reason )
-      {
-        b.failed = true;
-        console.log( "blob " + b.id + " failed", reason );
-      }
-      return fetch( clientConfig.blobUri, requestOptions)
-              .then( onFulfilled, onRejected );
     }    
-    
-    toText( analysis )
-    {
-      var str = "toolmessageversion1.0\n";
-      str += "id:" + this.id + "\n";
-      if ( this.replyToId )
-        str += "replytoid:" + this.replyToId + "\n";
-      if ( this.messageType )
-        str += "messagetype:" + this.messageType + "\n";
-      if ( this.payloadType && this.payload )
-      {
-        if ( analysis && analysis.binCount > 0 )
-        {
-          for ( var i=0; i<analysis.binData.length; i++ )
-          {
-            str+= "binaryinsert:";
-            str+= analysis.binData[i].id;
-            str+= "\n";
-          }
-        }
-        str += "payloadtype:" + this.payloadType + "\npayload:\n" ;
-        str += analysis.json;
-      }
-      return str;
-    }
-    
-    
-    send( socket, clientConfig )
-    {
-      var analysis;
-      
-      if ( this.payloadType && this.payload )
-        analysis = this.analyseAndSplit();
-      
-      // Start uploading binary parts first compiling list of promises
-      // so they can all be monitored. (Monitoring required because all
-      // the binaries need to be successfully uploaded with PUT method
-      // before we attempt to send the main payload via websocket
-      const putPromises = [];
-      if ( analysis && analysis.binCount > 0 )
-        for ( var i=0; i<analysis.binData.length; i++ )
-          putPromises.push( this.putBinary( analysis.binData[i], clientConfig ) );
-
-      // While uploading is proceeding compose the text message
-      // by combining headers with payload, if there is any.
-      var str = this.toText( analysis );
-      
-      // can start sending text now if there were no binary inserts
-      if ( !analysis || analysis.binCount === 0 )
-      {
-        console.log( "No binary inserts so sending text right away", str );
-        socket.send( str );
-        return;
-      }
-
-      console.log( "Will send this text when binary uploading done", str );
-      // Schedule sending the text when all binary uploads worked
-      function sendTextIfBinarySucceeded( values )
-      {
-        // what have we got here?
-        console.log( "sendTextIfBinarySucceeded()" );
-      
-        // fetch promises might succeed but unacceptable status
-        // code was returned. So, we still need to check for success.
-        for ( var i=0; i<analysis.binData.length; i++ )
-          if ( analysis.binData[i].failed )
-          {
-            console.error( "Not sending message because one or more binary uploads failed." );
-            return;
-          }
-        // All good so now send the string
-        console.log( "Sending message. socket.send( str )" );
-        socket.send( str );      
-      }
-      
-      Promise.all( putPromises )
-          .then(
-                (value)  => {sendTextIfBinarySucceeded( value );},
-                (reason) => {console.error( "one or more binary uploads failed", reason );}
-              );
-      
-      console.log( "Text message will be sent when all binary uploads complete." );
-      return;
-    }
   };
+
+
 
   lib.ToolSocket = class
   {
@@ -260,6 +68,7 @@ const lbultitoolapi = (function () {
     handler;
     socket;
     clientConfig;
+    sendPromise;
     
     constructor( websserviceuri, handler )
     {
@@ -268,6 +77,7 @@ const lbultitoolapi = (function () {
       this.validateHandler( handler );
       this.socket = new WebSocket( this.wsuri );
       this.socket.binaryType = "arraybuffer";
+      this.sendPromise=null;
       
       
       this.socket.addEventListener( 'open',    (event) => 
@@ -331,11 +141,6 @@ const lbultitoolapi = (function () {
       }
     }
     
-    sendMessage( message )
-    {
-      message.send( this.socket, this.clientConfig );
-    };
-
     dispatchMessage( message )
     {
       if ( !message.valid )
@@ -494,6 +299,214 @@ const lbultitoolapi = (function () {
       
       return message;
     };
+
+    
+    async sendMessage( message )
+    {
+      var analysis;
+
+      if ( this.sendPromise )
+      {
+        console.log( "SendMessage called but previous message not sent yet so wait." );
+        await this.sendPromise;
+        console.log( "Ready to send message now." );
+      }
+      
+      if ( message.payloadType && message.payload )
+        analysis = this.analyseAndSplit( message );
+      
+      // Start uploading binary parts first compiling list of promises
+      // so they can all be monitored. (Monitoring required because all
+      // the binaries need to be successfully uploaded with PUT method
+      // before we attempt to send the main payload via websocket
+      const putPromises = [];
+      if ( analysis && analysis.binCount > 0 )
+        for ( var i=0; i<analysis.binData.length; i++ )
+          putPromises.push( this.putBinary( analysis.binData[i], this.clientConfig ) );
+
+      // While uploading is proceeding compose the text message
+      // by combining headers with payload, if there is any.
+      var str = this.toText( message, analysis );
+      
+      // can start sending text now if there were no binary inserts
+      if ( !analysis || analysis.binCount === 0 )
+      {
+        console.log( "No binary inserts so want to send text right away", str );
+        this.socket.send( str );
+        return;
+      }
+
+      console.log( "Will send this text when binary uploading done", str );
+      // Schedule sending the text when all binary uploads worked
+      const thisToolSocket = this;
+      function sendTextIfBinarySucceeded( values )
+      {
+        thisToolSocket.sendPromise = null;
+        // what have we got here?
+        console.log( "sendTextIfBinarySucceeded()" );
+      
+        // fetch promises might succeed but unacceptable status
+        // code was returned. So, we still need to check for success.
+        for ( var i=0; i<analysis.binData.length; i++ )
+          if ( analysis.binData[i].failed )
+          {
+            console.error( "Not sending message because one or more binary uploads failed." );
+            return;
+          }
+        // All good so now send the string
+        console.log( "Sending message. socket.send( str )" );
+        thisToolSocket.socket.send( str );      
+      }
+      function binaryFailed( reason )
+      {
+        thisToolSocket.sendPromise = null;
+        console.error( "one or more binary uploads failed", reason );
+      }      
+      
+      this.sendPromise = Promise.all( putPromises )
+          .then(
+                (value)  => { sendTextIfBinarySucceeded( value ); },
+                (reason) => { binaryFailed( reason );             }
+              );
+      
+      console.log( "Text message will be sent when all binary uploads complete." );
+      return;
+    }
+  
+    analyse( message )
+    {
+      var analysis = {};
+      analysis.clashMap = new Map();
+      analysis.binCount = 0;
+      analysis.binData = [];
+      analysis.json = null;
+
+      function analyticalReplacer( key, value )
+      {
+        if ( value instanceof Uint8Array )
+        {
+          analysis.binCount++;
+          return undefined;
+        }
+        if ( typeof value === 'string' || value instanceof String )
+        {
+          if ( value.indexOf( "binary_" ) === 0 )
+          {
+            for ( var i=7; i<value.length; i++ )
+            {
+              let n = r.charCodeAt( i );
+              if ( n < 0x30 || n > 0x39 )
+                return value;
+            }
+            analysis.clashMap.set( value, value );
+          }
+          return value;
+        }
+        return value;
+      }
+
+      analysis.json = JSON.stringify( message.payload, analyticalReplacer );
+      return analysis;
+    }
+    
+    split( message, analysis )
+    {
+      function replacer( key, value )
+      {
+        if ( value instanceof Uint8Array )
+        {
+          let b = {};
+          b.id = getBlobId( analysis.clashMap );
+          b.len = value.length;
+          b.data = value;
+          b.sent = false;
+          b.failed = false;
+          analysis.binData.push( b );
+          return b.id;
+        }
+        return value;
+      }
+
+      analysis.json = JSON.stringify( message.payload, replacer );
+      return analysis;
+    }
+
+    analyseAndSplit( message )
+    {
+      // Count Uint8Arrays in the payload
+      // and find any string values that could be mistaken for
+      // binary placeholder strings. At same time serialize payload
+      // to JSON.
+      var analysis = this.analyse( message );
+      // If there is one or more UintArray values in the payload 
+      // make them into a list and 
+      // make a new JSON with placeholder strings to represent them.
+      if ( analysis.binCount !== 0  )
+        this.split( message, analysis );
+      
+      return analysis;
+    }
+    
+    // Will return a promise so multiple binary puts can be
+    // done in parallel.
+    putBinary( b )
+    {
+      console.log( "Starting binary data upload " + b.id );
+      const blob = new Blob([b.data]);
+      const requestOptions = {
+          method: 'PUT',
+          headers: { 
+            'Content-Type': 'application/octet-stream',
+            'Content-Length':  b.len,
+            'X-LBU-SessionID': this.clientConfig.sessionId,
+            'X-LBU-Nonce':     this.clientConfig.blobNonce,
+            'X-LBU-BlobId':    b.id
+          },
+          body: blob
+      };
+      function onFulfilled( response )
+      {
+        console.log( "For binary " + b.id + " status = " + response.status );
+        // Still counts as fail if status indicates problem.
+        if ( Math.floor( response.status/100 ) !== 2 )
+        {
+          console.log( "Failed upload " + response.statusText );
+          b.failed = true;
+        }
+      }
+      function onRejected( reason )
+      {
+        b.failed = true;
+        console.log( "blob " + b.id + " failed", reason );
+      }
+      return fetch( this.clientConfig.blobUri, requestOptions)
+              .then( onFulfilled, onRejected );
+    }    
+    
+    toText( message, analysis )
+    {
+      var str = "toolmessageversion1.0\n";
+      str += "id:" + message.id + "\n";
+      if ( message.replyToId )
+        str += "replytoid:" + message.replyToId + "\n";
+      if ( message.messageType )
+        str += "messagetype:" + message.messageType + "\n";
+      if ( message.payloadType && message.payload )
+      {
+        if ( analysis && analysis.binCount > 0 )
+        {
+          for ( var i=0; i<analysis.binData.length; i++ )
+          {
+            str+= "binaryinsert:";
+            str+= analysis.binData[i].id;
+            str+= "\n";
+          }
+        }
+        str += "payloadtype:" + message.payloadType + "\npayload:\n" ;
+        str += analysis.json;
+      }
+      return str;
+    }
   
     
   
