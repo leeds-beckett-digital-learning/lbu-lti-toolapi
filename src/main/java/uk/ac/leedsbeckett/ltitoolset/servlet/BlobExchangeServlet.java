@@ -54,7 +54,7 @@ public class BlobExchangeServlet extends HttpServlet
     
     long len = req.getContentLengthLong();
     logger.log( Level.INFO, "ContentLength = {0}", Long.toString( len ) );
-    if ( len > 10000000L )  // Exceeds 10MB
+    if ( len > 30000000L )  // Exceeds 30MB
     {
       resp.sendError( 413, "Upload too big." );
       return;
