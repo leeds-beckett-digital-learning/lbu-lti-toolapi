@@ -20,6 +20,8 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.logging.Level;
@@ -188,6 +190,18 @@ public abstract class Store<K,T extends Entry<K>>
     cache.put( key, r );
     if ( !cache.containsKey(key) )
       logger.log( Level.SEVERE, "Put record in cache but key is still not present {0}", key.toString() );
-  }  
+  }
+  
+  /**
+   * Utility method to make a file system safe file/directory name from a
+   * string that could contain any unicode characters.
+   * 
+   * @param str The input string
+   * @return A safe string for file/dir names.
+   */
+  public String toFileName( String str )
+  {
+    return URLEncoder.encode( str, StandardCharsets.UTF_8 );
+  }
 }
  
