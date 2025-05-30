@@ -33,6 +33,7 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
 import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExException;
 import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExchanger;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
+import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.HandlerPromisesReply;
 import uk.ac.leedsbeckett.ltitoolset.websocket.control.ControlClientConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.websocket.control.ControlMessageName;
 
@@ -87,6 +88,8 @@ public abstract class ToolEndpoint implements BackchannelOwner
       //logger.log( Level.INFO, "Checking method {0}", method.getName() );
       for ( EndpointMessageHandler handler : method.getAnnotationsByType( EndpointMessageHandler.class ) )
       {
+        boolean replyPromised = method.getAnnotationsByType( HandlerPromisesReply.class ).length > 0;
+        
         //logger.log(Level.INFO, "Method has EndpointMessageHandler annotation and name = {0}", handler.name());
         Class<?>[] classarray = method.getParameterTypes();
         //logger.log(Level.INFO, "Method parameter count = {0}", classarray.length);
@@ -115,7 +118,8 @@ public abstract class ToolEndpoint implements BackchannelOwner
             HandlerMethodRecord record = new HandlerMethodRecord( 
                           name, 
                           method, 
-                          classarray.length == 3?classarray[2]:null );
+                          classarray.length == 3?classarray[2]:null,
+                          replyPromised );
             //logger.log( Level.INFO, "Javascript:" );
             //logger.log( Level.INFO, record.getJavaScriptClass() );
             handlerMap.put( name, record );
@@ -300,7 +304,7 @@ public abstract class ToolEndpoint implements BackchannelOwner
   {
     try
     {
-      ToolMessageIncomingParts partial = new ToolMessageIncomingParts( text );
+      ToolMessageIncomingParts partial = new ToolMessageIncomingParts( session, text );
       if ( !partial.isValid() )
       {
         logger.log(Level.SEVERE, "Endpoint received invalid message: {0}", text );
@@ -380,6 +384,15 @@ public abstract class ToolEndpoint implements BackchannelOwner
         logger.log( Level.SEVERE, "Web socket message handler error.", ex );
       }
     }
+    finally
+    {
+      if ( record.isReplyPromised() && !message.isReplyToThisSent() )
+      {
+        logger.log( Level.SEVERE, "Handler promised reply but no reply was sent. {0} {1}",
+                    new Object[ ]{record.getName(), message.getId()});
+        processHandlerAlert(session, new HandlerAlertException( "Message handler promised to reply but failed to.", message ) );        
+      }
+    }
     
     return true;
   }
@@ -415,7 +428,13 @@ public abstract class ToolEndpoint implements BackchannelOwner
         }
       }
     
-    session.getAsyncRemote().sendText( parts.getText() );    
+    session.getAsyncRemote().sendText( parts.getText() );
+    // message sending complete
+    // if this is reply and it is going back to original session,
+    // record that it has been sent.
+    if (    parts.getToolMessage().getReplytoMessage() != null 
+         && session == parts.getToolMessage().getReplytoMessage().getSession() )
+      parts.getToolMessage().setReplyToThisSent( true );
   }
 
     

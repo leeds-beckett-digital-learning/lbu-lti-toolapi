@@ -26,8 +26,6 @@ import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.DeepLinkingSelection;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 import uk.ac.leedsbeckett.ltitoolset.websocket.HandlerAlertException;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessage;
-import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageDecoder;
-import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageEncoder;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointJavascriptProperties;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFacet;
@@ -39,10 +37,7 @@ import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.ToolInformation;
  * 
  * @author jon
  */
-@ServerEndpoint( 
-        value="/socket/deeplinking", 
-        decoders=ToolMessageDecoder.class, 
-        encoders=ToolMessageEncoder.class )
+@ServerEndpoint( value="/socket/deeplinking" )
 @EndpointJavascriptProperties(
         module="deeplinking",
         prefix="Deep",
@@ -129,7 +124,7 @@ public class DeepLinkingEndpoint extends ToolEndpoint
         options.addToolInformation( toolinfo );
     }
     
-    sendToolMessage( session, new ToolMessage( message.getId(), DeepServerMessageName.Options, options ) );    
+    sendToolMessage( session, new ToolMessage( message, DeepServerMessageName.Options, options ) );    
   }  
 
   /**
@@ -148,28 +143,29 @@ public class DeepLinkingEndpoint extends ToolEndpoint
   {
     ToolSetLtiState s = this.getState();
     if ( selection == null )
-      throw new HandlerAlertException( "Cannot process null tool selection.", message.getId() );
+      throw new HandlerAlertException( "Cannot process null tool selection.", message );
     if ( selection.getToolResourceId() != null )
-      throw new HandlerAlertException( "Deep linking to an existing tool resource is not supported.", message.getId() );
+      throw new HandlerAlertException( "Deep linking to an existing tool resource is not supported.", message );
     // Tool type now ignored
     if ( selection.getToolId() == null )
-      throw new HandlerAlertException( "Cannot process tool selection with null tool id.", message.getId() );
+      throw new HandlerAlertException( "Cannot process tool selection with null tool id.", message );
     
     Tool tool = toolCoordinator.getTool( selection.getToolId() );
     if ( tool == null )
-      throw new HandlerAlertException( "Unknown tool. id = " + selection.getToolId(), message.getId() );
+      throw new HandlerAlertException( "Unknown tool. id = " + selection.getToolId(), message );
 
     String effectiveFacetId = selection.getToolFacetId();
     if ( effectiveFacetId == null )
       effectiveFacetId = tool.getDefaultFacetId();
     
     if ( effectiveFacetId == null )
-      throw new HandlerAlertException( "No tool facet id specified and no default available.", message.getId() );
+      throw new HandlerAlertException( "No tool facet id specified and no default available.", message );
 
     ToolFacet tf = toolCoordinator.getToolFacet( selection.getToolId(), effectiveFacetId );
     
     if ( !tool.allowDeepLink( effectiveFacetId, deepstate ) )
-      throw new HandlerAlertException( "Selected facet of tool doesn't support deep linking. id = " + selection.getToolId() + " facet = " + selection.getToolFacetId(), message.getId() );
+      throw new HandlerAlertException( "Selected facet of tool doesn't support deep linking. id = " 
+              + selection.getToolId() + " facet = " + selection.getToolFacetId(), message );
 
     ToolInstantiationLevel level = tf.instantiationLevel();
     
@@ -181,7 +177,8 @@ public class DeepLinkingEndpoint extends ToolEndpoint
       // register this ID with the tool so it can create
       // and store appropriate data.
       if ( !tool.createToolResource( toolResourceId, effectiveFacetId, deepstate ) )
-        throw new HandlerAlertException( "Selected facet of tool failed to create new resource.  id = " + selection.getToolId() + " facet = " + selection.getToolFacetId(), message.getId() );
+        throw new HandlerAlertException( "Selected facet of tool failed to create new resource.  id = " 
+                + selection.getToolId() + " facet = " + selection.getToolFacetId(), message );
     }
     
     
@@ -224,7 +221,7 @@ public class DeepLinkingEndpoint extends ToolEndpoint
 
     String jwt = deepmessage.build();
     logger.log(Level.INFO, "JWT = {0}", jwt);
-    sendToolMessage( session, new ToolMessage( message.getId(), DeepServerMessageName.Jwt, jwt ) );    
+    sendToolMessage( session, new ToolMessage( message, DeepServerMessageName.Jwt, jwt ) );    
   }
 
   
@@ -232,7 +229,7 @@ public class DeepLinkingEndpoint extends ToolEndpoint
   public void processHandlerAlert( Session session, HandlerAlertException haex )
           throws IOException
   {
-    sendToolMessage( session, new ToolMessage( haex.getMessageId(), DeepServerMessageName.Alert, haex.getMessage() ) );    
+    sendToolMessage( session, new ToolMessage( haex.getOriginalMessage(), DeepServerMessageName.Alert, haex.getMessage() ) );    
   }
   
 }

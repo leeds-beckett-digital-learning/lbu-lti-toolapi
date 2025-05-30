@@ -21,23 +21,23 @@ package uk.ac.leedsbeckett.ltitoolset.websocket;
  */
 public class HandlerAlertException extends Exception
 {
-  final private String messageId;
+  final private ToolMessage originalMessage;
   
   /**
    * Constructs an instance of <code>HandlerAlertException</code> with the
    * specified detail message.
    *
    * @param msg the detail message.
-   * @param messageId Id of the incoming message that caused the issue.
+   * @param originalMessage The incoming message that caused the issue.
    */
-  public HandlerAlertException( String msg, String messageId )
+  public HandlerAlertException( String msg, ToolMessage originalMessage )
   {
     super( msg );
-    this.messageId = messageId;
+    this.originalMessage = originalMessage;
   }
 
-  public String getMessageId()
+  public ToolMessage getOriginalMessage()
   {
-    return messageId;
+    return originalMessage;
   }
 }

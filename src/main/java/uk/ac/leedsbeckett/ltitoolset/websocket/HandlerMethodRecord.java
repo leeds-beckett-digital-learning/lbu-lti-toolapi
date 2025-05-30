@@ -27,6 +27,7 @@ public class HandlerMethodRecord
     final String name;
     final Method method;
     final Class<?> parameterClass;
+    final boolean replyPromised;
    
     /**
      * Instantiate the class providing values for the final fields.
@@ -34,12 +35,14 @@ public class HandlerMethodRecord
      * @param name Name of the message.
      * @param method The reflected method.
      * @param parameterClass The class of the message that is to be handled.
+     * @param replyPromised Whether the handler must reply to the incoming message promptly.
      */
-    public HandlerMethodRecord( String name, Method method, Class<?> parameterClass )
+    public HandlerMethodRecord( String name, Method method, Class<?> parameterClass, boolean replyPromised )
     {
       this.name = name;
       this.method = method;
       this.parameterClass = parameterClass;
+      this.replyPromised = replyPromised;
     }
 
     /**
@@ -71,4 +74,9 @@ public class HandlerMethodRecord
     {
       return parameterClass;
     }  
+
+  public boolean isReplyPromised()
+  {
+    return replyPromised;
+  }
 }

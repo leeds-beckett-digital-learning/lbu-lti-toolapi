@@ -16,6 +16,7 @@
 package uk.ac.leedsbeckett.ltitoolset.websocket;
 
 import java.util.UUID;
+import javax.websocket.Session;
 
 /**
  * A websocket message format for use in this API.
@@ -28,31 +29,37 @@ public class ToolMessage
 
   boolean valid=true;
   
+  Session session; // only for incoming messages
+  
   String id;
   String replyToId;
+  ToolMessage replytoMessage;
   boolean control;
   String messageType;
   String payloadType;
   Object payload;
   
   String raw;
+  
+  boolean replyToThisSent=false;
 
-  public ToolMessage( String replytoid, ToolMessageName name, Object payload )
+  public ToolMessage( ToolMessage replytoMessage, ToolMessageName name, Object payload )
   {
-    this( replytoid, name, payload, false );
+    this( replytoMessage, name, payload, false );
   }
   /**
    * Constructor for sender to prepare the message for sending.
    * 
-   * @param replytoid ID of the message this is in reply to.
+   * @param replytoMessage Message this is in reply to.
    * @param name Name of message
    * @param payload The payload as a POJO.
    * @param control Is this a control message?
    */
-  public ToolMessage( String replytoid, ToolMessageName name, Object payload, boolean control )
+  public ToolMessage( ToolMessage replytoMessage, ToolMessageName name, Object payload, boolean control )
   {
     this.id = UUID.randomUUID().toString();
-    this.replyToId = replytoid;
+    this.replytoMessage = replytoMessage;
+    this.replyToId = (replytoMessage==null)?null:replytoMessage.getId();
     this.control = control;
     this.messageType = name.getName();
     if ( payload != null )
@@ -72,10 +79,12 @@ public class ToolMessage
   /**
    * Constructor for recreating incoming message from raw string.
    * 
+   * @param session The session the message was received on.
    * @param raw The source message string.
    */
-  public ToolMessage( String raw )
+  public ToolMessage( Session session, String raw )
   {
+    this.session = session;
     this.raw = raw;
   }
 
@@ -99,6 +108,15 @@ public class ToolMessage
     this.valid = valid;
   }
 
+  public Session getSession()
+  {
+    return session;
+  }
+
+  public void setSession( Session session )
+  {
+    this.session = session;
+  }
   
   /**
    * Get ID of the message.
@@ -139,6 +157,26 @@ public class ToolMessage
     this.replyToId = replyToId;
   }
 
+  public ToolMessage getReplytoMessage()
+  {
+    return replytoMessage;
+  }
+
+  public void setReplytoMessage( ToolMessage replytoMessage )
+  {
+    this.replytoMessage = replytoMessage;
+  }
+
+  public boolean isReplyToThisSent()
+  {
+    return replyToThisSent;
+  }
+
+  public void setReplyToThisSent( boolean replyToThisSent )
+  {
+    this.replyToThisSent = replyToThisSent;
+  }
+  
   public boolean isControl()
   {
     return control;

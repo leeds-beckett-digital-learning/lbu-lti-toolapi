@@ -160,7 +160,7 @@ public class ToolMessageOutgoingParts
   {
     System.out.println( "Hello" );
     TestObject payload = new TestObject();
-    ToolMessage toolMessage = new ToolMessage( "abcdef", TestObjectMessageName.Test, payload );
+    ToolMessage toolMessage = new ToolMessage( null, TestObjectMessageName.Test, payload );
     
     try
     {

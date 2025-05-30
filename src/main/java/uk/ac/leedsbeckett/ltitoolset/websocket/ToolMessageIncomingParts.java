@@ -25,10 +25,11 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.websocket.DecodeException;
 import javax.websocket.EncodeException;
+import javax.websocket.Session;
 import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExchanger;
-import static uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageDecoder.logger;
 
 /**
  *
@@ -36,6 +37,8 @@ import static uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageDecoder.logger;
  */
 public class ToolMessageIncomingParts
 {
+  static final Logger logger = Logger.getLogger(ToolMessageIncomingParts.class.getName() );
+
   final ToolMessage toolMessage;
   final HashMap<String,BinaryPart> binaryPartMap = new HashMap<>();
 
@@ -52,9 +55,9 @@ public class ToolMessageIncomingParts
 
 
   
-  public ToolMessageIncomingParts( String text ) throws DecodeException
+  public ToolMessageIncomingParts( Session session, String text ) throws DecodeException
   {
-    toolMessage = new ToolMessage( text );
+    toolMessage = new ToolMessage( session, text );
     this.text = text;
     textTimestamp = System.currentTimeMillis();
     reader = new BufferedReader( new StringReader( text ) );      
