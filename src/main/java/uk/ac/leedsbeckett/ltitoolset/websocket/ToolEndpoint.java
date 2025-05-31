@@ -390,7 +390,7 @@ public abstract class ToolEndpoint implements BackchannelOwner
       {
         logger.log( Level.SEVERE, "Handler promised reply but no reply was sent. {0} {1}",
                     new Object[ ]{record.getName(), message.getId()});
-        processHandlerAlert(session, new HandlerAlertException( "Message handler promised to reply but failed to.", message ) );        
+        processHandlerAlert(session, new HandlerAlertException( "A technical fault occured on the server.", message ) );        
       }
     }
     
@@ -432,9 +432,9 @@ public abstract class ToolEndpoint implements BackchannelOwner
     // message sending complete
     // if this is reply and it is going back to original session,
     // record that it has been sent.
-    if (    parts.getToolMessage().getReplytoMessage() != null 
-         && session == parts.getToolMessage().getReplytoMessage().getSession() )
-      parts.getToolMessage().setReplyToThisSent( true );
+    ToolMessage rtm = parts.getToolMessage().getReplytoMessage();
+    if ( rtm != null && session == rtm.getSession() )
+      rtm.setReplyToThisSent( true );
   }
 
     

@@ -43,10 +43,17 @@ public class ToolMessage
   
   boolean replyToThisSent=false;
 
+  public ToolMessage( ToolMessage replytoMessage, ToolMessageName name )
+  {
+    this( replytoMessage, name, null, false );
+  }
+  
   public ToolMessage( ToolMessage replytoMessage, ToolMessageName name, Object payload )
   {
     this( replytoMessage, name, payload, false );
   }
+  
+  
   /**
    * Constructor for sender to prepare the message for sending.
    * 

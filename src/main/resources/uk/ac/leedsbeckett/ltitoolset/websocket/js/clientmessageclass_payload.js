@@ -5,6 +5,7 @@ lib._SUBCLASS_Message = class extends lbultitoolapi.ClientMessage
   {
     super( "_MESSAGETYPE_", "_PAYLOADTYPE_" );
     this.payload = { _PAYLOAD_ };
+    this.replyPromised = _REPLYPROMISED_;
   }
 };
     

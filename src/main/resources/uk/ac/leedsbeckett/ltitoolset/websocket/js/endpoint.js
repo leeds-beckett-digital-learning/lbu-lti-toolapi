@@ -51,15 +51,32 @@ const lbultitoolapi = (function () {
   {
     constructor( messageType, payloadType )
     {
-      this.id = nextid++;
+      this.id = "id_" + nextid++;
       this.messageType = messageType?messageType:null;
       this.payloadType = payloadType?payloadType:null;
       this.replyToId   = null;
       this.payload     = null;
+      this.replyPromised = false;
     }    
   };
 
-
+  lib.WaitingMessage = class
+  {
+    constructor( message )
+    {
+      // The message that expects a reply
+      this.message = message;
+      // The promise that will be returned when
+      // client asks to send message.
+      this.promise = null;
+      // The resolve function that browser attached
+      // to the promise
+      this.resolve = null;
+      // The reject function that browser attached
+      // to the promise.
+      this.reject = null;
+    }
+  };
 
   lib.ToolSocket = class
   {
@@ -68,6 +85,7 @@ const lbultitoolapi = (function () {
     handler;
     socket;
     clientConfig;
+    waitingForReplyMap = new Map();
     
     constructor( websserviceuri, handler )
     {
@@ -121,7 +139,19 @@ const lbultitoolapi = (function () {
               if ( message.control )
                 this.processControlMessage( message );
               else
-                this.dispatchMessage( message );
+              {
+                console.log( message.replyToId );
+                console.log( this.waitingForReplyMap );
+                const w = this.waitingForReplyMap.get( message.replyToId );
+                console.log( w );
+                if ( w )
+                {
+                  this.waitingForReplyMap.delete( message.replyToId );
+                  if ( w.resolve ) w.resolve( message );
+                }
+                else
+                  this.dispatchMessage( message );
+              }
             } );
       }
     }
@@ -322,6 +352,25 @@ const lbultitoolapi = (function () {
       return message;
     };
 
+    sendMessageAndGetReply( message )
+    {
+      if ( !message.replyPromised )
+        throw new Error( "Cannot use sendMessageAndGetReply because server does not promise replies to this message." );
+      // Make a record of outgoing message.
+      const w = new lib.WaitingMessage( message );
+      w.promise = new Promise(
+              function (resolve, reject)
+                {
+                  w.resolve = resolve;
+                  w.reject = reject;
+                }
+              );
+      this.waitingForReplyMap.set( message.id, w );
+      // Send the message
+      this.sendMessage( message );
+      // Return a promise
+      return w.promise;
+    }
     
     sendMessage( message )
     {

@@ -107,6 +107,7 @@ public class EndpointJavascriptGenerator
     {
       part = clientNoPayload.replace( "_SUBCLASS_", handler.getName() );
       part = part.replace( "_MESSAGETYPE_", handler.getName() );
+      part = part.replace( "_REPLYPROMISED_", handler.isReplyPromised()?"true":"false" );
       return part;        
     }
     
@@ -115,6 +116,7 @@ public class EndpointJavascriptGenerator
     part = part.replace( "_PAYLOADTYPE_", handler.getParameterClass().getName() );
     part = part.replace( "_PARAMETERS_",  sba.toString() );
     part = part.replace( "_PAYLOAD_",     sbb.toString() );
+    part = part.replace( "_REPLYPROMISED_", handler.isReplyPromised()?"true":"false" );
     return part;
   }
 
@@ -139,9 +141,16 @@ public class EndpointJavascriptGenerator
       sb.append( "  name:\"" );
       sb.append( name.getName() );
       sb.append( "\",\n" );
-      sb.append( "  class:\"" );
-      sb.append( name.getPayloadClass().toString() );
-      sb.append( "\"\n}" );
+      sb.append( "  class:" );
+      if ( name.getPayloadClass() == null )
+        sb.append(  "null" );
+      else
+      {
+        sb.append( "\"" );
+        sb.append( name.getPayloadClass().getName() );
+        sb.append( "\"" );
+      }
+      sb.append( "\n}" );
     }
     sb.append( "\n" );
     
