@@ -23,7 +23,8 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageName;
  */
 public enum ControlMessageName implements ToolMessageName
 {
-  ControlClientConfiguration( "ControlClientConfiguration", ControlClientConfiguration.class);
+  ControlClientConfiguration( "ControlClientConfiguration", ControlClientConfiguration.class),
+  ControlErrorReply(          "ControlErrorReply",          ControlErrorReply.class);
 
   /**
    * Each constant has a name which can be used in encoded messages passing

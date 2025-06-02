@@ -30,6 +30,7 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointJavascriptPro
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFacet;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.ToolInformation;
+import uk.ac.leedsbeckett.ltitoolset.websocket.HandlerException;
 
 /**
  * A web socket endpoint that helps a deeplinking JSP page to create a deep link in a
@@ -110,7 +111,7 @@ public class DeepLinkingEndpoint extends ToolEndpoint
    */
   @EndpointMessageHandler()
   public void handleGetOptions( Session session, ToolMessage message )
-          throws IOException, HandlerAlertException
+          throws IOException, HandlerException
   {
     logger.log( Level.INFO, "Rxed GetOptions message." );
     
@@ -139,7 +140,7 @@ public class DeepLinkingEndpoint extends ToolEndpoint
    */
   @EndpointMessageHandler()
   public void handleMakeLink( Session session, ToolMessage message, DeepLinkingSelection selection )
-          throws IOException, HandlerAlertException
+          throws IOException, HandlerException
   {
     ToolSetLtiState s = this.getState();
     if ( selection == null )
@@ -222,14 +223,6 @@ public class DeepLinkingEndpoint extends ToolEndpoint
     String jwt = deepmessage.build();
     logger.log(Level.INFO, "JWT = {0}", jwt);
     sendToolMessage( session, new ToolMessage( message, DeepServerMessageName.Jwt, jwt ) );    
-  }
-
-  
-  @Override
-  public void processHandlerAlert( Session session, HandlerAlertException haex )
-          throws IOException
-  {
-    sendToolMessage( session, new ToolMessage( haex.getOriginalMessage(), DeepServerMessageName.Alert, haex.getMessage() ) );    
   }
   
 }

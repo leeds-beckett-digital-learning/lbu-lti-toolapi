@@ -375,8 +375,13 @@ public abstract class ToolEndpoint implements BackchannelOwner
     {
       // method threw exception
       Throwable original = ex.getCause();
-      if ( original instanceof HandlerAlertException )
-        processHandlerAlert(session, (HandlerAlertException) original);
+      if ( original instanceof HandlerException )
+      {
+        sendToolMessage( session, new ToolMessage( 
+                message, 
+                ControlMessageName.ControlErrorReply, 
+                ((HandlerException) original).getReply() ) );    
+      }
       else
       {
         if ( original instanceof IOException )
@@ -390,14 +395,12 @@ public abstract class ToolEndpoint implements BackchannelOwner
       {
         logger.log( Level.SEVERE, "Handler promised reply but no reply was sent. {0} {1}",
                     new Object[ ]{record.getName(), message.getId()});
-        processHandlerAlert(session, new HandlerAlertException( "A technical fault occured on the server.", message ) );        
+        sendToolMessage( session, new ToolMessage( message, ControlMessageName.ControlErrorReply, "Handler failed to reply." ) );    
       }
     }
     
     return true;
   }
-
-  public abstract void processHandlerAlert( Session session, HandlerAlertException haex ) throws IOException;
 
 
   private ToolMessageOutgoingParts buildOutgoingParts( ToolMessage tm ) throws DecodeException, JsonProcessingException

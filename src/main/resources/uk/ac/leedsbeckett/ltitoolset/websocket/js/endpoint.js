@@ -133,12 +133,10 @@ const lbultitoolapi = (function () {
         this.getBinaryParts( message )
           .then( () =>
             {
-              console.debug( "onMessage then handler" );
+              console.debug( "onMessage getBinaryParts 'then' handler" );
               this.decodePayload( message );
               console.log( message );
-              if ( message.control )
-                this.processControlMessage( message );
-              else
+              if ( message.replyToId )
               {
                 console.log( message.replyToId );
                 console.log( this.waitingForReplyMap );
@@ -147,11 +145,24 @@ const lbultitoolapi = (function () {
                 if ( w )
                 {
                   this.waitingForReplyMap.delete( message.replyToId );
-                  if ( w.resolve ) w.resolve( message );
+                  if ( message.messageType === "ControlErrorReply" )
+                  {
+                    if ( message.payload.userMessage )
+                      w.reject( new Error(message.payload.userMessage) );
+                    else
+                      w.reject( new Error( "Technical error processing message from browser." ) );
+                  }
+                  else
+                  {
+                    w.resolve( message );
+                  }
+                  return;
                 }
-                else
-                  this.dispatchMessage( message );
               }
+              if ( message.control )
+                this.processControlMessage( message );
+              else
+                this.dispatchMessage( message );
             } );
       }
     }

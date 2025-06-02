@@ -15,22 +15,40 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.websocket;
 
+import uk.ac.leedsbeckett.ltitoolset.websocket.control.ControlErrorReply;
+
 /**
  *
  * @author maber01
  */
-public class HandlerAlertException extends HandlerException
-{  
+public class HandlerException extends Exception
+{
+  final private ToolMessage originalMessage;
+  final ControlErrorReply reply;
   /**
    * Constructs an instance of <code>HandlerAlertException</code> with the
    * specified detail message.
    *
-   * @param msg the detail message.
+   * @param logMsg the detail message.
    * @param originalMessage The incoming message that caused the issue.
    */
-  public HandlerAlertException( String msg, ToolMessage originalMessage )
+  public HandlerException( String logMsg, ToolMessage originalMessage )
   {
-    super( msg, originalMessage );
-    this.reply.setUserMessage( msg );
+    super( logMsg );
+    this.originalMessage = originalMessage;
+    reply = new ControlErrorReply();
+    reply.setLogMessage( logMsg );
   }
+
+  public ToolMessage getOriginalMessage()
+  {
+    return originalMessage;
+  }
+
+  public ControlErrorReply getReply()
+  {
+    return reply;
+  }
+  
+  
 }

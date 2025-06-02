@@ -15,7 +15,6 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.ToolMessageName;
  */
 public enum DeepServerMessageName implements ToolMessageName
 {
-  Alert(              "Alert",              String.class ),
   Options(            "Options",            DeepLinkingOptions.class ),
   Jwt(                "Jwt",                String.class );
   
