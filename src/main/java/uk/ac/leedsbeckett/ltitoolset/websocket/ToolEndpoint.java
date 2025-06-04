@@ -35,6 +35,7 @@ import uk.ac.leedsbeckett.ltitoolset.blobex.BlobExchanger;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.EndpointMessageHandler;
 import uk.ac.leedsbeckett.ltitoolset.websocket.annotations.HandlerPromisesReply;
 import uk.ac.leedsbeckett.ltitoolset.websocket.control.ControlClientConfiguration;
+import uk.ac.leedsbeckett.ltitoolset.websocket.control.ControlErrorReply;
 import uk.ac.leedsbeckett.ltitoolset.websocket.control.ControlMessageName;
 
 /**
@@ -395,7 +396,10 @@ public abstract class ToolEndpoint implements BackchannelOwner
       {
         logger.log( Level.SEVERE, "Handler promised reply but no reply was sent. {0} {1}",
                     new Object[ ]{record.getName(), message.getId()});
-        sendToolMessage( session, new ToolMessage( message, ControlMessageName.ControlErrorReply, "Handler failed to reply." ) );    
+        ControlErrorReply cereply = new ControlErrorReply();
+        cereply.setLogMessage( "Handler failed to reply." );
+        cereply.setUserMessage( "A technical error occured in communication between your browser and the server computer." );
+        sendToolMessage( session, new ToolMessage( message, ControlMessageName.ControlErrorReply, cereply ) );    
       }
     }
     
