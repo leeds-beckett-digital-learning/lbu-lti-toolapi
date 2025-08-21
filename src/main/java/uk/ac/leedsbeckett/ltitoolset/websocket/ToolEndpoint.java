@@ -376,12 +376,17 @@ public abstract class ToolEndpoint implements BackchannelOwner
     {
       // method threw exception
       Throwable original = ex.getCause();
+      logger.log( Level.SEVERE, "Invocation target exception when calling handler.", original );
       if ( original instanceof HandlerException )
       {
+        HandlerException he = (HandlerException) original;
+        logger.log( Level.FINE, "Sending ControlErrorReply" );
+        logger.log( Level.FINE, he.getReply().getLogMessage() );
+        logger.log( Level.FINE, he.getReply().getUserMessage() );
         sendToolMessage( session, new ToolMessage( 
                 message, 
                 ControlMessageName.ControlErrorReply, 
-                ((HandlerException) original).getReply() ) );    
+                he.getReply() ) );    
       }
       else
       {

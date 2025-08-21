@@ -15,12 +15,15 @@
  */
 package uk.ac.leedsbeckett.ltitoolset.websocket;
 
+import java.util.logging.Logger;
+
 /**
  *
  * @author maber01
  */
 public class HandlerAlertException extends HandlerException
 {  
+  static final Logger logger = Logger.getLogger(HandlerAlertException.class.getName() );
   /**
    * Constructs an instance of <code>HandlerAlertException</code> with the
    * specified detail message.
@@ -31,6 +34,9 @@ public class HandlerAlertException extends HandlerException
   public HandlerAlertException( String msg, ToolMessage originalMessage )
   {
     super( msg, originalMessage );
+    logger.fine( "=======================================================");
+    logger.fine( this.reply.getUserMessage() );
     this.reply.setUserMessage( msg );
+    logger.fine( this.reply.getUserMessage() );
   }
 }
