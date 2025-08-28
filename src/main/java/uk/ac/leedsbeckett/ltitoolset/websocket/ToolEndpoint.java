@@ -164,6 +164,11 @@ public abstract class ToolEndpoint implements BackchannelOwner
     return false;
   }
   
+  public boolean indexByPlatformCourse()
+  {
+    return false;
+  }
+  
   public boolean indexByToolResource()
   {
     return false;

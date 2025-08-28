@@ -18,6 +18,7 @@ package uk.ac.leedsbeckett.ltitoolset;
 
 import uk.ac.leedsbeckett.ltitoolset.resources.PlatformResourceKey;
 import java.io.Serializable;
+import uk.ac.leedsbeckett.ltitoolset.resources.PlatformCourseKey;
 
 /**
  * This contains data that a user of the platform-wide tool might need.
@@ -38,6 +39,7 @@ public class ToolLaunchState implements Serializable
   private String platformId;
   private PlatformResourceKey platformResourceKey;
   private String toolResourceId;
+  private PlatformCourseKey platformCourseKey;
   
   private String personId;
   private String personName;
@@ -76,6 +78,16 @@ public class ToolLaunchState implements Serializable
     this.platformResourceKey = platformResourceKey;
   }
 
+  public PlatformCourseKey getPlatformCourseKey()
+  {
+    return platformCourseKey;
+  }
+
+  public void setPlatformCourseKey( PlatformCourseKey platformCourseKey )
+  {
+    this.platformCourseKey = platformCourseKey;
+  }  
+  
   public String getToolResourceId()
   {
     return toolResourceId;

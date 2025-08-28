@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -203,5 +204,9 @@ public abstract class Store<K,T extends Entry<K>>
   {
     return URLEncoder.encode( str, StandardCharsets.UTF_8 );
   }
+  
+  public String fromFileName( String filename )
+  {
+    return URLDecoder.decode( filename, StandardCharsets.UTF_8 );
+  }
 }
- 

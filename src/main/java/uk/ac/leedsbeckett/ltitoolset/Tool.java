@@ -31,6 +31,7 @@ import uk.ac.leedsbeckett.ltitoolset.annotations.ToolProperties;
 import uk.ac.leedsbeckett.ltitoolset.config.PlatformConfiguration;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.DeepLinkingLaunchState;
 import uk.ac.leedsbeckett.ltitoolset.deeplinking.data.ToolFacetInformation;
+import uk.ac.leedsbeckett.ltitoolset.resources.PlatformCourseKey;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 
 /**
@@ -115,6 +116,11 @@ public abstract class Tool
       {
         PlatformResourceKey rk = new PlatformResourceKey( state.getPlatformName(), lticlaims.getLtiResource().getId() );
         toolstate.setPlatformResourceKey( rk );
+      }
+      if ( lticlaims.getLtiContext().getId() != null )
+      {
+        PlatformCourseKey ck = new PlatformCourseKey( state.getPlatformName(), lticlaims.getLtiContext().getId() );
+        toolstate.setPlatformCourseKey( ck );
       }
     }
     if ( state.getToolResourceId() != null )

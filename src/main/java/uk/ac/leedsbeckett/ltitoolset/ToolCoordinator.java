@@ -97,6 +97,7 @@ import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpoint;
 import uk.ac.leedsbeckett.ltitoolset.websocket.ToolEndpointSessionRecord;
 import uk.ac.leedsbeckett.ltitoolset.websocket.WebSocketPinger;
 import uk.ac.leedsbeckett.ltitoolset.annotations.ToolFacet;
+import uk.ac.leedsbeckett.ltitoolset.resources.PlatformCourseKey;
 
 /**
  * There is a one to one relationship between instances of this and 
@@ -167,6 +168,7 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
   // WebSocket Endpoint related stuff
   private final Object wsSessionMappingSync = new Object();
   private final HashMap<PlatformResourceKey,HashMap<String,ToolEndpointSessionRecord>> wsSessionMappedByPlatformResource = new HashMap<>();
+  private final HashMap<PlatformCourseKey,HashMap<String,ToolEndpointSessionRecord>> wsSessionMappedByPlatformCourse = new HashMap<>();
   private final HashMap<String,HashMap<String,ToolEndpointSessionRecord>> wsSessionMappedByToolResource = new HashMap<>();
   private final HashMap<String,ToolEndpointSessionRecord> allWsSessions = new HashMap<>();
   OpenSessionPredicate opensessionpredicate = new OpenSessionPredicate();
@@ -893,6 +895,15 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
           appendSessionLog( sb, record );
       }
       
+      sb.append( "Sessions by platform course key: \n" );
+      for ( PlatformCourseKey key : wsSessionMappedByPlatformCourse.keySet() )
+      {
+        sb.append( " Platform Course key: " ).append( key.toString() ).append( "\n" );
+        HashMap<String,ToolEndpointSessionRecord> map = wsSessionMappedByPlatformCourse.get( key );
+        for ( ToolEndpointSessionRecord record : map.values() )
+          appendSessionLog( sb, record );
+      }
+      
       sb.append( "Sessions by tool resource key: \n" );
       for ( String trkey : wsSessionMappedByToolResource.keySet() )
       {
@@ -943,6 +954,21 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
         }
       }
     
+      if ( endpoint.indexByPlatformCourse() )
+      {
+        PlatformCourseKey key = endpoint.getToolState().getPlatformCourseKey();
+        if ( key != null )
+        {
+          HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByPlatformCourse.get( key );
+          if ( set == null )
+          {
+            set = new HashMap<>();
+            wsSessionMappedByPlatformCourse.put( key, set );
+          }
+          set.put(endpoint.getStateid(), tesr );
+        }
+      }
+    
       if ( endpoint.indexByToolResource() )
       {
         String toolResourceId = endpoint.getToolState().getToolResourceId();
@@ -984,7 +1010,25 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
         {
           HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByPlatformResource.get( key );
           if ( set != null )
+          {
             set.remove( endpoint.getStateid() );
+            if ( set.isEmpty() )
+              wsSessionMappedByPlatformResource.remove( key );
+          }
+        }
+      }
+      if ( endpoint.indexByPlatformCourse() )
+      {
+        PlatformCourseKey key = endpoint.getToolState().getPlatformCourseKey();
+        if ( key != null )
+        {
+          HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByPlatformCourse.get( key );
+          if ( set != null )
+          {
+            set.remove( endpoint.getStateid() );
+            if ( set.isEmpty() )
+              wsSessionMappedByPlatformCourse.remove( key );
+          }
         }
       }
       if ( endpoint.indexByToolResource() )
@@ -994,7 +1038,11 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
         {
           HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByToolResource.get( trid );
           if ( set != null )
+          {
             set.remove( endpoint.getStateid() );
+            if ( set.isEmpty() )
+              wsSessionMappedByToolResource.remove( trid );
+          }
         }
       }
       if ( logger.isLoggable( Level.FINE ) )
@@ -1051,6 +1099,38 @@ public class ToolCoordinator implements ServletContainerInitializer, Backchannel
       StringBuilder sb = new StringBuilder();
       sb.append( "Debugging output: \n" );
       HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByPlatformResource.get( key );
+      if ( set == null ) return null;
+      HashSet<Session> sessions = new HashSet<>();
+      for ( ToolEndpointSessionRecord record : set.values() )
+      {
+        sb.append( "Checking: \n" );
+        this.appendSessionLog( sb, record );
+        if ( opensessionpredicate.test( record.getSession() ) )
+        {
+          sb.append( "ADDED\n" );
+          sessions.add( record.getSession() );
+        }
+      }
+      logger.fine( sb.toString() );
+      return sessions;
+    }  
+  }
+
+  /**
+   * Get a set of web socket sessions that have been registered against
+   * a specific platform course. Probably the intention is to multicast
+   * a message to them all.
+   * 
+   * @param key The key of the specific platform course.
+   * @return The set.
+   */
+  public Set<Session> getWsSessionsForPlatformCourse( PlatformCourseKey key )
+  {
+    synchronized ( wsSessionMappingSync )
+    {
+      StringBuilder sb = new StringBuilder();
+      sb.append( "Debugging output: \n" );
+      HashMap<String,ToolEndpointSessionRecord> set = wsSessionMappedByPlatformCourse.get( key );
       if ( set == null ) return null;
       HashSet<Session> sessions = new HashSet<>();
       for ( ToolEndpointSessionRecord record : set.values() )

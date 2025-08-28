@@ -29,8 +29,10 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.Availability;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1Input;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseV2;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseGroupUsersV2Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseGroupsV2Results;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseUsersV1Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCoursesV3Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetUsersV1Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.RestExceptionMessage;
@@ -175,6 +177,26 @@ public class BlackboardBackchannel extends Backchannel
     }
     return null;
   }
+
+  public JsonResult getV3Course( String courseId )
+  {
+    if ( StringUtils.isBlank( courseId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v3/courses/" + courseId;
+    ArrayList<NameValuePair> params = new ArrayList<>();
+    
+    try
+    {
+      return getBlackboardRest( target, token, params, CourseV2.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
   
   public JsonResult getV2CourseGroupSets( String courseId )
   {
@@ -257,6 +279,29 @@ public class BlackboardBackchannel extends Backchannel
     }
     return null;
   }
+  
+  public JsonResult getV1CourseUsers( String courseId, String role )
+  {
+    if ( StringUtils.isBlank( courseId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v1/courses/uuid:" + courseId + "/users";
+    ArrayList<NameValuePair> params = new ArrayList<>();
+    if ( role != null )
+      params.add( new BasicNameValuePair( "role", role ) );
+    
+    try
+    {
+      return getBlackboardRest( target, token, params, GetCourseUsersV1Results.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+  
   
   /**
    * 
