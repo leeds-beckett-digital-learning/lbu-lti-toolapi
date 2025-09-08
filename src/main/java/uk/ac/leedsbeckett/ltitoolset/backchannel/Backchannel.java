@@ -43,6 +43,7 @@ import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
@@ -289,6 +290,39 @@ public abstract class Backchannel
               failClass );
     }
   }
+  
+  public boolean deleteBlackboardRest( 
+          String url, 
+          String token, 
+          List<NameValuePair> params
+      ) throws IOException
+  {
+    URI target;
+    URIBuilder urib;
+    try
+    {
+      urib = new URIBuilder( url );
+      urib.addParameters( params );
+      target = urib.build();
+    }
+    catch ( URISyntaxException ex )
+    {
+      throw new IOException( "Unable to build uri", ex );
+    }
+    
+
+    final HttpDelete httpDelete = new HttpDelete( target );
+    httpDelete.addHeader( "Authorization", "Bearer " + token );
+    
+    
+    logger.log( Level.INFO, "Executing DELETE on {0}", target );
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute(httpDelete))
+    {
+      return (response.getStatusLine().getStatusCode() / 100) == 2;
+    }
+  }
 
   public JsonResult putBlackboardRest( 
           String url, 
@@ -328,7 +362,7 @@ public abstract class Backchannel
               failClass );
     }
   }
-
+  
   public JsonResult postJsonObject( String url, String token, Object data, Class<?> successClass, Class<?> failClass ) throws IOException
   {
     String s = serializeObject( data );

@@ -370,4 +370,26 @@ public class BlackboardBackchannel extends Backchannel
     return null;
   }
 
+  public boolean deleteV1CourseChild( String courseId, String childCourseId )
+  {
+    if ( StringUtils.isAnyBlank( courseId, childCourseId ) )
+      return false;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + 
+            "/learn/api/public/v1/courses/" + courseId + "/children/" + childCourseId;
+    ArrayList<NameValuePair> params = new ArrayList<>();
+    params.add( new BasicNameValuePair( "separationStyle", "enrollmentsInBoth" ) );
+    
+    try
+    {
+      return deleteBlackboardRest( target, token, params );
+    }
+    catch ( IOException ex )
+    {
+      logger.log( Level.WARNING, "Unable to create course membership.", ex );
+    }
+    return false;
+  }
 }
