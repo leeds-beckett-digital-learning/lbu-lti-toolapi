@@ -33,6 +33,7 @@ import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseV2;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseGroupUsersV2Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseGroupsV2Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCourseUsersV1Results;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCoursesCrossListSetV3Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetCoursesV3Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.GetUsersV1Results;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.RestExceptionMessage;
@@ -178,6 +179,26 @@ public class BlackboardBackchannel extends Backchannel
     return null;
   }
 
+  public JsonResult getV1CoursesCrossListSet( String courseId )
+  {
+    if ( StringUtils.isBlank( courseId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v1/courses/" + courseId + "/crossListSet";
+    ArrayList<NameValuePair> params = new ArrayList<>();
+       
+    try
+    {
+      return getBlackboardRest( target, token, params, GetCoursesCrossListSetV3Results.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+  
   public JsonResult getV3Course( String courseId )
   {
     if ( StringUtils.isBlank( courseId ) )
