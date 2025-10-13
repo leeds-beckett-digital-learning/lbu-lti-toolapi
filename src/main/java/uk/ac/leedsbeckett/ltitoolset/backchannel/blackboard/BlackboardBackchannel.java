@@ -22,11 +22,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.NameValuePair;
+import org.apache.http.StatusLine;
 import org.apache.http.message.BasicNameValuePair;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.Backchannel;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.JsonResult;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.OAuth2Token;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.Availability;
+import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseContentV1;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseMembershipV1Input;
 import uk.ac.leedsbeckett.ltitoolset.backchannel.blackboard.data.CourseV2;
@@ -323,6 +325,26 @@ public class BlackboardBackchannel extends Backchannel
     return null;
   }
   
+  public JsonResult patchV3Course( String courseId, String json )
+  {
+    if ( StringUtils.isBlank( courseId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + "/learn/api/public/v3/courses/" + courseId;
+    ArrayList<NameValuePair> params = new ArrayList<>();
+    
+    try
+    {
+      return patchBlackboardRest( target, token, json, CourseV2.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+      logger.log( Level.WARNING, "Unable to modify course.", ex );
+    }
+    return null;
+  }
   
   /**
    * 
@@ -370,10 +392,10 @@ public class BlackboardBackchannel extends Backchannel
     return null;
   }
 
-  public boolean deleteV1CourseChild( String courseId, String childCourseId )
+  public JsonResult deleteV1CourseChild( String courseId, String childCourseId )
   {
     if ( StringUtils.isAnyBlank( courseId, childCourseId ) )
-      return false;
+      return null;
     
     OAuth2Token t = getAuthToken();
     String token = t.getAccessToken();
@@ -384,12 +406,56 @@ public class BlackboardBackchannel extends Backchannel
     
     try
     {
-      return deleteBlackboardRest( target, token, params );
+      return deleteBlackboardRest( target, token, params, RestExceptionMessage.class );
     }
     catch ( IOException ex )
     {
-      logger.log( Level.WARNING, "Unable to create course membership.", ex );
+      logger.log( Level.WARNING, "Unable to delete course parent/child relationship.", ex );
     }
-    return false;
+    return null;
+  }
+
+  public JsonResult getV1CourseContent( String courseId, String contentId )
+  {
+    if ( StringUtils.isAnyBlank( courseId, contentId ) )
+      return null;
+
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + 
+            "/learn/api/public/v1/courses/" + courseId + "/contents/" + contentId;
+    ArrayList<NameValuePair> params = new ArrayList<>();
+
+    try
+    {
+      return getBlackboardRest( target, token, params, CourseContentV1.class, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+    }
+    return null;
+  }
+
+  public JsonResult deleteV1CourseContent( String courseId, String contentId )
+  {
+    if ( StringUtils.isAnyBlank( courseId, contentId ) )
+      return null;
+    
+    OAuth2Token t = getAuthToken();
+    String token = t.getAccessToken();
+    String target = "https://" + platform + 
+            "/learn/api/public/v1/courses/" + courseId + "/contents/" + contentId;
+    ArrayList<NameValuePair> params = new ArrayList<>();
+    //params.add( new BasicNameValuePair( "allowChildCourseContent", "true" ) );
+    
+    try
+    {
+      return deleteBlackboardRest( target, token, params, RestExceptionMessage.class );
+    }
+    catch ( IOException ex )
+    {
+      logger.log( Level.WARNING, "Unable to delete course content.", ex );
+    }
+    return null;
   }
 }

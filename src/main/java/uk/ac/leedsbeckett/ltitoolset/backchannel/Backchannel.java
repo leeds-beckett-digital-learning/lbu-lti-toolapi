@@ -39,12 +39,14 @@ import org.apache.http.Header;
 import org.apache.http.HeaderElement;
 import org.apache.http.HttpHost;
 import org.apache.http.NameValuePair;
+import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthenticationException;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpDelete;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPatch;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.methods.HttpPut;
 import org.apache.http.client.protocol.HttpClientContext;
@@ -60,6 +62,7 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.DefaultProxyRoutePlanner;
 import org.apache.http.message.BasicNameValuePair;
 import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.util.EntityUtils;
 import uk.ac.leedsbeckett.lti.services.ags.data.LineItem;
 import uk.ac.leedsbeckett.lti.services.ags.data.LineItems;
 import uk.ac.leedsbeckett.lti.services.ags.data.Score;
@@ -291,10 +294,11 @@ public abstract class Backchannel
     }
   }
   
-  public boolean deleteBlackboardRest( 
+  public JsonResult deleteBlackboardRest( 
           String url, 
           String token, 
-          List<NameValuePair> params
+          List<NameValuePair> params,
+          Class<?> failClass
       ) throws IOException
   {
     URI target;
@@ -310,17 +314,18 @@ public abstract class Backchannel
       throw new IOException( "Unable to build uri", ex );
     }
     
-
     final HttpDelete httpDelete = new HttpDelete( target );
     httpDelete.addHeader( "Authorization", "Bearer " + token );
-    
-    
+        
     logger.log( Level.INFO, "Executing DELETE on {0}", target );
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute(httpDelete))
     {
-      return (response.getStatusLine().getStatusCode() / 100) == 2;
+      return new JsonResult( 
+              response,
+              null,
+              failClass );
     }
   }
 
@@ -355,6 +360,45 @@ public abstract class Backchannel
     try (CloseableHttpClient client = clientBuilder.build();
         CloseableHttpResponse response = (CloseableHttpResponse) client
             .execute( httpPut ))
+    {
+      return new JsonResult( 
+              response,
+              successClass,
+              failClass );
+    }
+  }
+  
+  public JsonResult patchBlackboardRest( 
+          String url, 
+          String token, 
+          String data,
+          Class<?> successClass,
+          Class<?> failClass ) throws IOException
+  {
+    URI target;
+    URIBuilder urib;
+    try
+    {
+      urib = new URIBuilder( url );
+      target = urib.build();
+    }
+    catch ( URISyntaxException ex )
+    {
+      throw new IOException( "Unable to build uri", ex );
+    }
+    
+
+    final HttpPatch httpPatch = new HttpPatch( target );
+    httpPatch.addHeader( "Authorization", "Bearer " + token );
+    httpPatch.setHeader("Accept", "application/json");
+    httpPatch.setHeader("Content-type", "application/json; charset=utf-8");
+    StringEntity stringEntity = new StringEntity( data, StandardCharsets.UTF_8 );
+    httpPatch.setEntity( stringEntity );
+    
+    logger.log( Level.INFO, "Executing PATCH on {0}", target );
+    try (CloseableHttpClient client = clientBuilder.build();
+        CloseableHttpResponse response = (CloseableHttpResponse) client
+            .execute( httpPatch ))
     {
       return new JsonResult( 
               response,

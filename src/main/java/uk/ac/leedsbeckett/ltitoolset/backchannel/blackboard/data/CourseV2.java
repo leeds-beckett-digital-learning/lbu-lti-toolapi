@@ -33,6 +33,9 @@ public class CourseV2
   private final String courseId;
   private final String name;
   private final String description;
+  private final Boolean organization;
+  private final String ultraStatus;
+  private final Boolean closedComplete;
   private final String parentId;
 
   @JsonCreator
@@ -43,6 +46,9 @@ public class CourseV2
                    @JsonProperty(value = "courseId",     required = true ) String courseId, 
                    @JsonProperty(value = "name",         required = true ) String name, 
                    @JsonProperty(value = "description",  required = false) String description,
+                   @JsonProperty(value = "organization", required = false) Boolean organization,
+                   @JsonProperty(value = "ultraStatus",  required = false) String ultraStatus,
+                   @JsonProperty(value = "closedComplete", required = false) Boolean closedComplete,
                    @JsonProperty(value = "parentId",     required = false) String parentId)
   {
     this.id = id;
@@ -52,6 +58,9 @@ public class CourseV2
     this.courseId = courseId;
     this.name = name;
     this.description = description;
+    this.organization = organization;
+    this.ultraStatus = ultraStatus;
+    this.closedComplete = closedComplete;
     this.parentId = parentId;
   }
 
@@ -96,6 +105,24 @@ public class CourseV2
   {
     return description;
   }  
+
+  @JsonProperty
+  public Boolean getOrganization()
+  {
+    return organization;
+  }
+
+  @JsonProperty
+  public String getUltraStatus()
+  {
+    return ultraStatus;
+  }
+
+  @JsonProperty
+  public Boolean getClosedComplete()
+  {
+    return closedComplete;
+  }
 
   @JsonProperty
   public String getParentId()

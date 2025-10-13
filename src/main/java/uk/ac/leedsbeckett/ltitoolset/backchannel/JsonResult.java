@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HeaderElement;
 import org.apache.http.HttpResponse;
@@ -75,7 +76,14 @@ public class JsonResult
     
     this.rawValue = IOUtils.toString( response.getEntity().getContent(), this.contentCharset );
     logger.log(Level.INFO, "Raw response: {0}", this.rawValue);
-
+    if ( StringUtils.isBlank( rawValue ) )
+    {
+      successful =  successClass == null && 
+                    statusLine != null && 
+                   (statusLine.getStatusCode() / 100) == (HttpStatus.SC_OK / 100);
+      return;
+    }
+    
     // Try interpreting raw value as JSON regardless of content type.
     Class<?>[] expectedClasses = new Class<?>[3];
     expectedClasses[0] = successClass;
